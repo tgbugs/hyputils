@@ -140,21 +140,15 @@ async def ws_loop():
     handler = Handler(filter_handlers)
     ssl_context = _ssl_context(verify=True)
     
-    #post to login form
-    #requests.post(username passworld) response has a cookies
-    #copy the set cookie header into the connect
-    username = environ.get('HYPUSH_USERNAME', 'USERNAME')
-    password = environ.get('HYPUSH_PASSWORD', 'PASSWORD')
     api_token = environ.get('HYPUSH_API_TOKEN', 'TOKEN')
     groups = environ.get('HYPUSH_GROUPS', '__world__').split(' ')
     print(groups)
 
-    #headers = {'Authorization': 'Bearer ' + api_token}#, 'Content-Type': 'application/json;charset=utf-8'}  # once the websocket auth goes in
-    header = get_auth_header(username, password)
+    headers = {'Authorization': 'Bearer ' + api_token}
     extra_headers = {
 
     }
-    extra_headers.update(header)
+    extra_headers.update(headers)
     filters = preFilter().export()
 
     while True:

@@ -90,7 +90,7 @@ class printHandler(filterHandler):
         return True
 
     def handler(self, message):
-        print(message['payload'][0]['links']['incontext'])
+        #print(message['payload'][0]['links']['incontext'])  # structure changed?
         print(message)
 
 
