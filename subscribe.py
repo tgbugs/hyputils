@@ -11,7 +11,6 @@ import certifi
 import websockets
 import robobrowser
 
-from handlers import getFilterHandlers
 
 from IPython import embed
 
@@ -134,38 +133,44 @@ def get_auth_header(username, password):
     return {'Cookie': 'session=%s' % session_cookie}
 
 
-async def ws_loop():
-    websocket_endpoint = 'wss://hypothes.is/ws'
-    filter_handlers = getFilterHandlers()
-    handler = Handler(filter_handlers)
-    ssl_context = _ssl_context(verify=True)
-    
-    api_token = environ.get('HYPUSH_API_TOKEN', 'TOKEN')
-    groups = environ.get('HYPUSH_GROUPS', '__world__').split(' ')
-    print(groups)
+def setup_websocket(api_token, filters, filter_handlers, websocket_endpoint='wss://hypothes.is/ws', extra_headers=None):
+    if extra_headers is None:
+        extra_headers = {}
+    async def ws_loop():
+        #websocket_endpoint = 'wss://hypothes.is/ws'
+        #filter_handlers = getFilterHandlers()
+        handler = Handler(filter_handlers)
+        ssl_context = _ssl_context(verify=True)
+        
 
-    headers = {'Authorization': 'Bearer ' + api_token}
-    extra_headers = {
+        headers = {'Authorization': 'Bearer ' + api_token}
+        extra_headers.update(headers)
 
-    }
-    extra_headers.update(headers)
-    filters = preFilter().export()
-
-    while True:
-        try:
-            async with websockets.connect(websocket_endpoint, ssl=ssl_context, extra_headers=extra_headers) as ws:
-                await setup_connection(ws)
-                print('working!')
-                await setup_filters(ws, filters)
-                print('subscribed')
-                await process_messages(ws, handler)
-        except KeyboardInterrupt:
-            break
-        except websockets.exceptions.ConnectionClosed:
-            pass
+        while True:
+            try:
+                async with websockets.connect(websocket_endpoint, ssl=ssl_context, extra_headers=extra_headers) as ws:
+                    await setup_connection(ws)
+                    print('working!')
+                    await setup_filters(ws, filters)
+                    print('subscribed')
+                    await process_messages(ws, handler)
+            except KeyboardInterrupt:
+                break
+            except websockets.exceptions.ConnectionClosed:
+                pass
+    return ws_loop
 
 def main():
+    from handlers import getFilterHandlers
     loop = asyncio.get_event_loop()
+
+    api_token = environ.get('HYPUSH_API_TOKEN', 'TOKEN')
+    groups = environ.get('HYPUSH_GROUPS', '__world__').split(' ')
+    filters = preFilter(groups=groups).export()
+    filter_handlers = getFilterHandlers()
+    print(groups)
+    ws_loop = setup_websocket(api_token, filters, filter_handlers)
+
     loop.run_until_complete(ws_loop())
 
 if __name__ == '__main__':
