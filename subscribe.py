@@ -156,6 +156,8 @@ def setup_websocket(api_token, filters, filter_handlers, websocket_endpoint='wss
                     await process_messages(ws, handler)
             except KeyboardInterrupt:
                 break
+            except SystemExit:
+                break
             except websockets.exceptions.ConnectionClosed:
                 pass
     return ws_loop
@@ -169,7 +171,7 @@ def main():
     filters = preFilter(groups=groups).export()
     filter_handlers = getFilterHandlers()
     print(groups)
-    ws_loop = setup_websocket(api_token, filters, filter_handlers)
+    ws_loop, exit_val = setup_websocket(api_token, filters, filter_handlers)
 
     loop.run_until_complete(ws_loop())
 
