@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 import json
+import pickle
 import requests
 import traceback
+from os import environ
 
 try:
     from urllib.parse import urlencode
@@ -16,6 +18,75 @@ try:
 except ImportError:
     printD = print
 
+# read environment variables # FIXME not the most modular...
+
+api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
+username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
+group = environ.get('HYP_GROUP', '__world__')
+print(api_token, username, group)  # sanity check
+
+# annotation memoization
+
+def get_annos_from_api(offset=0, limit=None):
+    print('yes we have to start from here')
+    h = HypothesisUtils(username=username, token=api_token, group=group, max_results=100000)
+    params = {'offset':offset,
+              'group':h.group}
+    if limit is None:
+        rows = h.search_all(params)
+    else:
+        params['limit'] = limit
+        obj = h.search(params)
+        rows = obj['rows']
+        if 'replies' in obj:
+            rows += obj['replies']
+    annos = [HypothesisAnnotation(row) for row in rows]
+    return annos
+
+def get_annos_from_file(memoization_file):
+    try:
+        with open(memoization_file, 'rb') as f:
+            annos = pickle.load(f)
+        if annos is None:
+            return []
+        else:
+            return annos
+    except FileNotFoundError:
+        return []
+
+def add_missing_annos(annos):
+    offset = 0
+    limit = 200
+    done = False
+    while not done:
+        new_annos = get_annos_from_api(offset, limit)
+        offset += limit
+        if not new_annos:
+            break
+        for anno in new_annos:
+            if anno not in annos:  # this will catch edits
+                annos.append(anno)
+            else:
+                done = True
+                break  # assume that annotations return newest first
+
+def memoize_annos(annos, memoization_file):  # FIXME if there are multiple ws listeners we will have race conditions?
+    print(f'annos updated, memoizing new version with, {len(annos)} members')
+    with open(memoization_file, 'wb') as f:
+        pickle.dump(annos, f)
+
+def get_annos(memoization_file='/tmp/annotations.pickle'):
+    annos = get_annos_from_file(memoization_file)
+    if not annos:
+        new_annos = get_annos_from_api()
+        annos.extend(new_annos)
+    add_missing_annos(annos)
+    memoize_annos(annos, memoization_file)
+    return annos
+
+#
+# url helpers
+
 def idFromShareLink(link):  # XXX warning this will break
     if 'hyp.is' in link:
         id_ = link.split('/')[3]
@@ -24,6 +95,7 @@ def idFromShareLink(link):  # XXX warning this will break
 def shareLinkFromId(id_):
     return 'https://hyp.is/' + id_
 
+# API classes
 
 class HypothesisUtils:
     """ services for authenticating, searching, creating annotations """
