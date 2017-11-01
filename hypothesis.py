@@ -3,10 +3,27 @@ from __future__ import print_function
 import json
 import requests
 import traceback
+
 try:
     from urllib.parse import urlencode
 except ImportError:
     from urllib import urlencode
+
+try:
+    from misc.debug import TDB
+    tdb=TDB()
+    printD=tdb.printD
+except ImportError:
+    printD = print
+
+def idFromShareLink(link):  # XXX warning this will break
+    if 'hyp.is' in link:
+        id_ = link.split('/')[3]
+        return id_
+
+def shareLinkFromId(id_):
+    return 'https://hyp.is/' + id_
+
 
 class HypothesisUtils:
     """ services for authenticating, searching, creating annotations """
@@ -128,6 +145,7 @@ class HypothesisUtils:
         obj = self.authenticated_api_query(query_url)
         return obj
 
+
 class HypothesisAnnotation:
     """Encapsulate one row of a Hypothesis API search."""
     def __init__(self, row):
@@ -226,4 +244,165 @@ class HypothesisAnnotation:
 
     def __hash__(self):
         return hash(self.text + self.id)
+
+
+# HypothesisHelper class customized to deal with replacing
+#  exact, text, and tags based on its replies
+#  also for augmenting the annotation with distinct fields
+#  using annotation-text:exact or something like that... (currently using PROTCUR:annotation-exact which is super akward)
+#  eg annotation-text:children to say exactly what the fields are when there needs to be more than one
+#  it is possible to figure most of them out from their content but not always
+class HypothesisHelper:  # a better HypothesisAnnotation
+    """ A wrapper around sets of hypothes.is annotations
+        with referential structure an pretty printing. """
+    objects = {}  # TODO updates # NOTE: all child classes need their own copy of objects
+    _replies = {}
+    reprReplies = True
+    _embedded = False
+
+    @classmethod
+    def byId(cls, id_):
+        try:
+            return next(v for v in cls.objects.values()).getObjectById(id_)
+        except StopIteration as e:
+            raise Warning(f'{cls.__name__}.objects has not been populated with annotations yet!') from e
+
+    def __new__(cls, anno, annos):
+        try:
+            self = cls.objects[anno.id]
+            if self._text == anno.text and self._tags == anno.tags:
+                #printD(f'{self.id} already exists')
+                return self
+            else:
+                #printD(f'{self.id} already exists but something has changed')
+                self.__init__(anno, annos)  # just updated the underlying refs no worries
+                return self
+        except KeyError:
+            #printD(f'{anno.id} doesnt exist')
+            return super().__new__(cls)
+
+    def __init__(self, anno, annos):
+        self.annos = annos
+        self.id = anno.id  # hardset this to prevent shenanigans
+        self.objects[self.id] = self
+        self._anno = anno
+        self.hasAstParent = False
+        self.parent  # populate self._replies before the recursive call
+        self.replies
+        #if self.replies:
+            #print(self.replies)
+        #if self.id not in self._replies:
+            #self._replies[self.id] = set()  # This is bad becuase it means we don't trigger a search
+
+    # protect the original annotation from modification
+    @property
+    def _type(self): return self._anno.type
+    @property
+    def _exact(self): return self._anno.exact
+    @property
+    def _text(self): return self._anno.text
+    @property
+    def _tags(self): return self._anno.tags
+    @property
+    def references(self): return self._anno.references
+
+    # we don't have any rules for how to modify these yet
+    @property
+    def exact(self): return self._exact
+    @property
+    def text(self): return self._text
+    @property
+    def tags(self): return self._tags
+
+    def getAnnoById(self, id_):
+        try:
+            return [a for a in self.annos if a.id == id_][0]
+        except IndexError as e:
+            print('could not find', id_, shareLinkFromId(id_))
+            return None
+
+    def getObjectById(self, id_):
+        try:
+            return self.objects[id_]
+        except KeyError as e:
+            anno = self.getAnnoById(id_)
+            if anno is None:
+                self.objects[id_] = None
+                #print('Problem in', self.shareLink)  # must come after self.objects[id_] = None else RecursionError
+                print('Problem in', self.shareLink, f"{self.__class__.__name__}.byId('{self.id}')")
+                return None
+            else:
+                h = self.__class__(anno, self.annos)
+                return h
+
+    @property
+    def shareLink(self):
+        if self.parent is not None:
+            return self.parent.shareLink
+        else:
+            return shareLinkFromId(self.id)
+
+    @property
+    def parent(self):
+        if not self.references:
+            return None
+        else:
+            for parent_id in self.references[::-1]:  # go backward to get the direct parent first, slower for shareLink but ok
+                parent = self.getObjectById(parent_id)
+                if parent is not None:
+                    if parent.id not in self._replies:
+                        self._replies[parent.id] = set()
+                    self._replies[parent.id].add(self)
+                    return parent
+                else:
+                    printD('Replies Issues')
+
+    @property
+    def replies(self):
+        # for the record, the naieve implementation of this
+        # looping over annos everytime is 3 orders of magnitude slower
+        try:
+            return self._replies[self.id]  # we use self.id here instead of self to avoid recursion on __eq__
+        except KeyError:
+            self._replies[self.id] = set()
+            for anno in [a for a in self.annos if self.id in a.references]:
+                # super slow? think again alternate implementations are even slower
+                # and induce all sorts of hair raising recursion issues :/
+                self.__class__(anno, self.annos)
+            return self._replies[self.id]
+
+    def __eq__(self, other):
+        return (self.id == other.id
+                and self.text == other.text
+                and set(self.tags) == set(other.tags))
+
+    def __hash__(self):
+        return hash(self.__class__.__name__ + self.id)
+
+    def __repr__(self, depth=0):
+        start = '|' if depth else ''
+        t = ' ' * 4 * depth + start
+
+        parent_id =  f"\n{t}parent_id:    {self.parent.id} {self.__class__.__name__}.byId('{self.parent.id}')" if self.parent else ''
+        exact_text = f'\n{t}exact:        {self.exact}' if self.exact else ''
+
+        text_align = 'text:         '
+        lp = f'\n{t}'
+        text_line = lp + ' ' * len(text_align)
+        text_text = lp + text_align + self.text.replace('\n', text_line) if self.text else ''
+        tag_text =   f'\n{t}tags:         {self.tags}' if self.tags else ''
+
+        replies = ''.join(r.__repr__(depth + 1) for r in self.replies)
+        rep_ids = f'\n{t}replies:      ' + ' '.join(f"{self.__class__.__name__}.byId('{r.id}')"
+                                                    for r in self.replies)
+        replies_text = (f'\n{t}replies:{replies}' if self.reprReplies else rep_ids) if replies else ''
+        return (f'\n{t.replace("|","")}*--------------------'
+                f"\n{t}{self.__class__.__name__ + ':':<14}{self.shareLink} {self.__class__.__name__}.byId('{self.id}')"
+                f'\n{t}user:         {self._anno.user}'
+                f'{parent_id}'
+                f'{exact_text}'
+                f'{text_text}'
+                f'{tag_text}'
+                f'{replies_text}'
+                f'\n{t}____________________')
 
