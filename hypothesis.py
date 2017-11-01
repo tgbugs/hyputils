@@ -25,64 +25,74 @@ username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
 print(api_token, username, group)  # sanity check
 
-# annotation memoization
+# annotation retrieval and memoization
 
-def get_annos_from_api(offset=0, limit=None):
-    print('yes we have to start from here')
-    h = HypothesisUtils(username=username, token=api_token, group=group, max_results=100000)
-    params = {'offset':offset,
-              'group':h.group}
-    if limit is None:
-        rows = h.search_all(params)
-    else:
-        params['limit'] = limit
-        obj = h.search(params)
-        rows = obj['rows']
-        if 'replies' in obj:
-            rows += obj['replies']
-    annos = [HypothesisAnnotation(row) for row in rows]
-    return annos
+class Memoizer:
+    def __init__(self, api_token=api_token, username=username, group=group, memoization_file='/tmp/annotations.pickle'):
+        self.api_token = api_token
+        self.username = username
+        self.group = group
+        self.memoization_file = memoization_file
 
-def get_annos_from_file(memoization_file):
-    try:
-        with open(memoization_file, 'rb') as f:
-            annos = pickle.load(f)
-        if annos is None:
-            return []
+    def __call__(self):
+        return self.get_annos()
+
+    def get_annos_from_api(self, offset=0, limit=None):
+        print('yes we have to start from here')
+        h = HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=100000)
+        params = {'offset':offset,
+                  'group':h.group}
+        if limit is None:
+            rows = h.search_all(params)
         else:
-            return annos
-    except FileNotFoundError:
-        return []
+            params['limit'] = limit
+            obj = h.search(params)
+            rows = obj['rows']
+            if 'replies' in obj:
+                rows += obj['replies']
+        annos = [HypothesisAnnotation(row) for row in rows]
+        return annos
 
-def add_missing_annos(annos):
-    offset = 0
-    limit = 200
-    done = False
-    while not done:
-        new_annos = get_annos_from_api(offset, limit)
-        offset += limit
-        if not new_annos:
-            break
-        for anno in new_annos:
-            if anno not in annos:  # this will catch edits
-                annos.append(anno)
+    def get_annos_from_file(self):
+        try:
+            with open(self.memoization_file, 'rb') as f:
+                annos = pickle.load(f)
+            if annos is None:
+                return []
             else:
-                done = True
-                break  # assume that annotations return newest first
+                return annos
+        except FileNotFoundError:
+            return []
 
-def memoize_annos(annos, memoization_file):  # FIXME if there are multiple ws listeners we will have race conditions?
-    print(f'annos updated, memoizing new version with, {len(annos)} members')
-    with open(memoization_file, 'wb') as f:
-        pickle.dump(annos, f)
+    def add_missing_annos(self, annos):
+        offset = 0
+        limit = 200
+        done = False
+        while not done:
+            new_annos = self.get_annos_from_api(offset, limit)
+            offset += limit
+            if not new_annos:
+                break
+            for anno in new_annos:
+                if anno not in annos:  # this will catch edits
+                    annos.append(anno)
+                else:
+                    done = True
+                    break  # assume that annotations return newest first
 
-def get_annos(memoization_file='/tmp/annotations.pickle'):
-    annos = get_annos_from_file(memoization_file)
-    if not annos:
-        new_annos = get_annos_from_api()
-        annos.extend(new_annos)
-    add_missing_annos(annos)
-    memoize_annos(annos, memoization_file)
-    return annos
+    def memoize_annos(self, annos):  # FIXME if there are multiple ws listeners we will have race conditions?
+        print(f'annos updated, memoizing new version with, {len(annos)} members')
+        with open(self.memoization_file, 'wb') as f:
+            pickle.dump(annos, f)
+
+    def get_annos(self):
+        annos = self.get_annos_from_file()
+        if not annos:
+            new_annos = self.get_annos_from_api()
+            annos.extend(new_annos)
+        self.add_missing_annos(annos)
+        self.memoize_annos(annos)
+        return annos
 
 #
 # url helpers
