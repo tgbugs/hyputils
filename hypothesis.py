@@ -119,6 +119,12 @@ class HypothesisUtils:
         r = requests.post(self.api_url + '/annotations', headers=headers, data=data.encode('utf-8'))
         return r
 
+    def patch_annotation(self, id, payload):
+        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        data = json.dumps(payload, ensure_ascii=False)
+        r = requests.patch(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
+        return r
+
     def search_all(self, params={}):
         """Call search API with pagination, return rows """
         while True:
