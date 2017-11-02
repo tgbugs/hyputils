@@ -347,6 +347,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     _replies = {}
     reprReplies = True
     _embedded = False
+    _done_loading = False
+    _annos = {}
 
     @classmethod
     def byId(cls, id_):
@@ -356,6 +358,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             raise Warning(f'{cls.__name__}.objects has not been populated with annotations yet!') from e
 
     def __new__(cls, anno, annos):
+        if not cls._annos:  # much faster (as in O(n**2) -> O(1)) to populate once at the start
+            cls._annos.update({a.id:a for a in annos})
         try:
             self = cls.objects[anno.id]
             if self._text == anno.text and self._tags == anno.tags:
@@ -376,11 +380,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         self._anno = anno
         self.hasAstParent = False
         self.parent  # populate self._replies before the recursive call
-        self.replies
-        #if self.replies:
-            #print(self.replies)
-        #if self.id not in self._replies:
-            #self._replies[self.id] = set()  # This is bad becuase it means we don't trigger a search
+        if len(self.objects) == len(annos):
+            self.__class__._done_loading = True
 
     # protect the original annotation from modification
     @property
@@ -404,8 +405,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
 
     def getAnnoById(self, id_):
         try:
-            return [a for a in self.annos if a.id == id_][0]
-        except IndexError as e:
+            return self._annos[id_]
+        except KeyError as e:
             print('could not find', id_, shareLinkFromId(id_))
             return None
 
@@ -449,15 +450,12 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     def replies(self):
         # for the record, the naieve implementation of this
         # looping over annos everytime is 3 orders of magnitude slower
-        try:
+        if self._done_loading:
+            if self.id not in self._replies:
+                self._replies[self.id] = set()
             return self._replies[self.id]  # we use self.id here instead of self to avoid recursion on __eq__
-        except KeyError:
-            self._replies[self.id] = set()
-            for anno in [a for a in self.annos if self.id in a.references]:
-                # super slow? think again alternate implementations are even slower
-                # and induce all sorts of hair raising recursion issues :/
-                self.__class__(anno, self.annos)
-            return self._replies[self.id]
+        else:
+            raise ValueError('Not done loading annos, you will be missing references!')
 
     def __eq__(self, other):
         return (self.id == other.id
