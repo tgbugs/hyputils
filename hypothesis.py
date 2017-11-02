@@ -360,6 +360,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     def __new__(cls, anno, annos):
         if not cls._annos:  # much faster (as in O(n**2) -> O(1)) to populate once at the start
             cls._annos.update({a.id:a for a in annos})
+            if len(cls._annos) != len(annos):
+                print(f'WARNING it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
         try:
             self = cls.objects[anno.id]
             if self._text == anno.text and self._tags == anno.tags:
@@ -374,13 +376,16 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             return super().__new__(cls)
 
     def __init__(self, anno, annos):
+        self._recursion_blocker = False
         self.annos = annos
         self.id = anno.id  # hardset this to prevent shenanigans
         self.objects[self.id] = self
+        #if self.objects[self.id] is None:
+            #printD('WAT', self.id)
         self._anno = anno
         self.hasAstParent = False
         self.parent  # populate self._replies before the recursive call
-        if len(self.objects) == len(annos):
+        if len(self.objects) == len(self._annos):
             self.__class__._done_loading = True
 
     # protect the original annotation from modification
@@ -416,9 +421,13 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         except KeyError as e:
             anno = self.getAnnoById(id_)
             if anno is None:
-                self.objects[id_] = None
+                #self.objects[id_] = None  # don't do this it breaks the type on objects
                 #print('Problem in', self.shareLink)  # must come after self.objects[id_] = None else RecursionError
-                print('Problem in', self.shareLink, f"{self.__class__.__name__}.byId('{self.id}')")
+                if not self._recursion_blocker:
+                    if self._type == 'reply':
+                        print('Orphaned reply', self.shareLink, f"{self.__class__.__name__}.byId('{self.id}')")
+                    else:
+                        print('Problem in', self.shareLink, f"{self.__class__.__name__}.byId('{self.id}')")
                 return None
             else:
                 h = self.__class__(anno, self.annos)
@@ -426,9 +435,12 @@ class HypothesisHelper:  # a better HypothesisAnnotation
 
     @property
     def shareLink(self):
+        self._recursion_blocker = True
         if self.parent is not None:
+            self._recursion_blocker = False
             return self.parent.shareLink
         else:
+            self._recursion_blocker = False
             return shareLinkFromId(self.id)
 
     @property
@@ -455,7 +467,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
                 self._replies[self.id] = set()
             return self._replies[self.id]  # we use self.id here instead of self to avoid recursion on __eq__
         else:
-            raise ValueError('Not done loading annos, you will be missing references!')
+            print('WARNING: Not done loading annos, you will be missing references!')
+            return set()
 
     def __eq__(self, other):
         return (self.id == other.id
