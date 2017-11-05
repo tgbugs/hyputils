@@ -412,7 +412,7 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         try:
             return self._annos[id_]
         except KeyError as e:
-            print('could not find', id_, shareLinkFromId(id_))
+            #print('could not find', id_, shareLinkFromId(id_))
             return None
 
     def getObjectById(self, id_):
@@ -456,7 +456,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
                     self._replies[parent.id].add(self)
                     return parent
                 else:
-                    printD('Replies Issues')
+                    #printD(f"Parent gone for {self.__class__.__name__}.byId('{self.id}'}")
+                    pass
 
     @property
     def replies(self):
