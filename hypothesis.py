@@ -92,7 +92,7 @@ class Memoizer:
             annos.extend(new_annos)
         self.add_missing_annos(annos)
         self.memoize_annos(annos)
-        return annos
+        return sorted(annos, key=lambda a: a.updated)
 
 #
 # url helpers
@@ -395,7 +395,7 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         self._anno = anno
         self.hasAstParent = False
         self.parent  # populate self._replies before the recursive call
-        if len(self.objects) == len(self._annos):
+        if len(self.objects) == len(annos):
             self.__class__._done_loading = True
 
     # protect the original annotation from modification
@@ -408,6 +408,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     @property
     def _tags(self): return self._anno.tags
     @property
+    def _updated(self): return self._anno.updated  # amusing things happen if you use self._anno.tags instead...
+    @property
     def references(self): return self._anno.references
 
     # we don't have any rules for how to modify these yet
@@ -417,6 +419,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     def text(self): return self._text
     @property
     def tags(self): return self._tags
+    @property
+    def updated(self): return self._updated
 
     def getAnnoById(self, id_):
         try:
@@ -481,13 +485,21 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             print('WARNING: Not done loading annos, you will be missing references!')
             return set()
 
+
     def __eq__(self, other):
-        return (self.id == other.id
-                and self.text == other.text
-                and set(self.tags) == set(other.tags))
+        return (self.id == other.id and
+                self.text == other.text and
+                set(self.tags) == set(other.tags) and
+                self.updated == other.updated)
 
     def __hash__(self):
         return hash(self.__class__.__name__ + self.id)
+
+    def __lt__(self, other):
+        return self.updated < other.updated
+
+    def __gt__(self, other):
+        return not self.__lt__(other)
 
     def __repr__(self, depth=0):
         start = '|' if depth else ''
