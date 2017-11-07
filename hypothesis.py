@@ -195,6 +195,11 @@ class HypothesisUtils:
             r = None  # if we get here someone probably ran the bookmarklet from firefox or the like
         return r
 
+    def get_annotation(self, id):
+        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        r = requests.get(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
+        return r
+
     def post_annotation(self, payload):
         headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
         data = json.dumps(payload, ensure_ascii=False)
@@ -205,6 +210,11 @@ class HypothesisUtils:
         headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
         data = json.dumps(payload, ensure_ascii=False)
         r = requests.patch(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
+        return r
+
+    def delete_annotation(self, id):
+        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        r = requests.delete(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
         return r
 
     def search_all(self, params={}):
