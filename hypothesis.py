@@ -197,7 +197,7 @@ class HypothesisUtils:
 
     def get_annotation(self, id):
         headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
-        r = requests.get(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
+        r = requests.get(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def post_annotation(self, payload):
@@ -214,7 +214,7 @@ class HypothesisUtils:
 
     def delete_annotation(self, id):
         headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
-        r = requests.delete(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
+        r = requests.delete(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def search_all(self, params={}):
