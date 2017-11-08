@@ -42,6 +42,8 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
         h = HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=100000)
         params = {'offset':offset,
                   'group':h.group}
+        if self.group == '__world__':
+            params['user'] = self.username
         if limit is None:
             rows = h.search_all(params)
         else:
