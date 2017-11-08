@@ -440,6 +440,7 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             for a in annos:
                 if a not in cls._annos_list:
                     cls._annos_list.append(a)
+            annos = cls._annos_list
 
         if not cls._annos or len(cls._annos) < len(annos):  # much faster (as in O(n**2) -> O(1)) to populate once at the start
             cls._annos.update({a.id:a for a in annos})  # FIXME this fails on deletes...
