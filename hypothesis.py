@@ -28,7 +28,7 @@ print(api_token, username, group)  # sanity check
 # annotation retrieval and memoization
 
 class Memoizer:
-    def __init__(self, api_token=api_token, username=username, group=group, memoization_file='/tmp/annotations.pickle'):
+    def __init__(self, memoization_file, api_token=api_token, username=username, group=group):
         self.api_token = api_token
         self.username = username
         self.group = group
@@ -54,14 +54,17 @@ class Memoizer:
         return annos
 
     def get_annos_from_file(self):
-        try:
-            with open(self.memoization_file, 'rb') as f:
-                annos = pickle.load(f)
-            if annos is None:
+        if self.memoization_file is not None:
+            try:
+                with open(self.memoization_file, 'rb') as f:
+                    annos = pickle.load(f)
+                if annos is None:
+                    return []
+                else:
+                    return annos
+            except FileNotFoundError:
                 return []
-            else:
-                return annos
-        except FileNotFoundError:
+        else:
             return []
 
     def add_missing_annos(self, annos):
@@ -81,9 +84,12 @@ class Memoizer:
                     break  # assume that annotations return newest first
 
     def memoize_annos(self, annos):  # FIXME if there are multiple ws listeners we will have race conditions?
-        print(f'annos updated, memoizing new version with, {len(annos)} members')
-        with open(self.memoization_file, 'wb') as f:
-            pickle.dump(annos, f)
+        if self.memoization_file is not None:
+            print(f'annos updated, memoizing new version with, {len(annos)} members')
+            with open(self.memoization_file, 'wb') as f:
+                pickle.dump(annos, f)
+        else:
+            print(f'No memoization file, not saving.')
 
     def get_annos(self):
         annos = self.get_annos_from_file()
@@ -109,7 +115,7 @@ def shareLinkFromId(id_):
 
 class HypothesisUtils:
     """ services for authenticating, searching, creating annotations """
-    def __init__(self, username=None, token=None, limit=None, max_results=None, domain=None, group=None):
+    def __init__(self, username=None, token=None, group=None, domain=None, max_results=None, limit=None):
         if domain is None:
             self.domain = 'hypothes.is'
         else:
@@ -247,6 +253,7 @@ class HypothesisUtils:
 class HypothesisAnnotation:
     """Encapsulate one row of a Hypothesis API search."""
     def __init__(self, row):
+        self._row = row
         self.type = None
         self.id = row['id']
         self.updated = row['updated'][0:19]
@@ -336,6 +343,13 @@ class HypothesisAnnotation:
         except:
             print(traceback.format_exc())
 
+
+    @property
+    def group(self): return self._row['group']
+
+    @property
+    def permissions(self): return {k:v for k,v in self._row['permissions'].items()}
+
     def __eq__(self, other):
         # text and tags can change, if exact changes then the id will also change
         return self.id == other.id and self.text == other.text and set(self.tags) == set(other.tags)
@@ -399,6 +413,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             self.__class__._done_loading = True
 
     # protect the original annotation from modification
+    @property
+    def _permissions(self): return self._anno.permissions
     @property
     def _type(self): return self._anno.type
     @property
@@ -501,11 +517,15 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     def __gt__(self, other):
         return not self.__lt__(other)
 
-    def __repr__(self, depth=0):
+    @property
+    def _python__repr__(self):
+        return f"{self.__class__.__name__}.byId('{self.id}')"
+
+    def __repr__(self, depth=0, format__repr__for_children=''):
         start = '|' if depth else ''
         t = ' ' * 4 * depth + start
 
-        parent_id =  f"\n{t}parent_id:    {self.parent.id} {self.__class__.__name__}.byId('{self.parent.id}')" if self.parent else ''
+        parent_id =  f"\n{t}parent_id:    {self.parent.id} {self.parent._python__repr__}" if self.parent else ''
         exact_text = f'\n{t}exact:        {self.exact}' if self.exact else ''
 
         text_align = 'text:         '
@@ -515,16 +535,16 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         tag_text =   f'\n{t}tags:         {self.tags}' if self.tags else ''
 
         replies = ''.join(r.__repr__(depth + 1) for r in self.replies)
-        rep_ids = f'\n{t}replies:      ' + ' '.join(f"{self.__class__.__name__}.byId('{r.id}')"
-                                                    for r in self.replies)
+        rep_ids = f'\n{t}replies:      ' + ' '.join(r._python__repr__ for r in self.replies)
         replies_text = (f'\n{t}replies:{replies}' if self.reprReplies else rep_ids) if replies else ''
         return (f'\n{t.replace("|","")}*--------------------'
-                f"\n{t}{self.__class__.__name__ + ':':<14}{self.shareLink} {self.__class__.__name__}.byId('{self.id}')"
+                f"\n{t}{self.__class__.__name__ + ':':<14}{self.shareLink} {self._python__repr__}"
                 f'\n{t}user:         {self._anno.user}'
                 f'{parent_id}'
                 f'{exact_text}'
                 f'{text_text}'
                 f'{tag_text}'
                 f'{replies_text}'
+                f'{format__repr__for_children}'
                 f'\n{t}____________________')
 
