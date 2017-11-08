@@ -27,7 +27,7 @@ print(api_token, username, group)  # sanity check
 
 # annotation retrieval and memoization
 
-class Memoizer:
+class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
     def __init__(self, memoization_file, api_token=api_token, username=username, group=group):
         self.api_token = api_token
         self.username = username
@@ -99,6 +99,49 @@ class Memoizer:
         self.add_missing_annos(annos)
         self.memoize_annos(annos)
         return sorted(annos, key=lambda a: a.updated)
+
+    def add_anno(self, anno, annos):
+        annos.append(anno)
+        self.memoize_annos(annos)
+
+    def del_anno(self, id_, annos, memoize=True):
+        # FIXME this is is SUPER slow
+        matches = [a for a in annos if a.id == id_]
+        if not matches:
+            raise ValueError(f'No annotation with id={id_} could be found.')
+        else:
+            for match in matches:
+                annos.remove(match)
+            if memoize:
+                self.memoize_annos(annos)
+
+    def update_anno(self, anno, annos):
+        self.del_anno(anno.id, annos, memoize=False)
+        self.add_anno(anno, annos)
+
+    def update_annos_from_api_response(resp, annos):
+        # XXX NOTE this will collide with websocket if unmanaged
+        # therefore we will need to somehow sync with that to make sure
+        # everything remains sane... maybe a shared log that the
+        # websocket handler can peak at an confirm or something
+        # (that is going to be a weird boundary to navigate)
+        if resp.status_code == 200:
+            if resp.request.method == 'GET':
+                anno = HypothesisAnnotation(resp.json())
+                self.update_anno(anno, annos)
+                return anno
+            elif resp.request.method == 'POST':
+                anno = HypothesisAnnotation(resp.json())
+                self.add_anno(anno, annos)
+                return anno
+            elif resp.request.method == 'PATCH':
+                anno = HypothesisAnnotation(resp.json())
+                self.update_anno(anno, annos)
+                return anno
+            elif resp.request.method == 'DELETE':
+                id = resp.json()['id']
+                self.del_anno(id, annos)
+
 
 #
 # url helpers
@@ -343,7 +386,6 @@ class HypothesisAnnotation:
         except:
             print(traceback.format_exc())
 
-
     @property
     def group(self): return self._row['group']
 
@@ -352,10 +394,16 @@ class HypothesisAnnotation:
 
     def __eq__(self, other):
         # text and tags can change, if exact changes then the id will also change
-        return self.id == other.id and self.text == other.text and set(self.tags) == set(other.tags)
+        return self.id == other.id and self.text == other.text and set(self.tags) == set(other.tags) and self.updated == other.updated
 
     def __hash__(self):
-        return hash(self.text + self.id)
+        return hash(self.id + self.text + self.updated)
+
+    def __lt__(self, other):
+        return self.updated < other.updated
+
+    def __gt__(self, other):
+        return not self.__lt__(other)
 
 
 # HypothesisHelper class customized to deal with replacing
@@ -375,6 +423,10 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     _annos = {}
 
     @classmethod
+    def addAnno(cls, anno):
+        return cls.__new__(anno, [anno])
+
+    @classmethod
     def byId(cls, id_):
         try:
             return next(v for v in cls.objects.values()).getObjectById(id_)
@@ -382,8 +434,15 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             raise Warning(f'{cls.__name__}.objects has not been populated with annotations yet!') from e
 
     def __new__(cls, anno, annos):
-        if not cls._annos:  # much faster (as in O(n**2) -> O(1)) to populate once at the start
-            cls._annos.update({a.id:a for a in annos})
+        if not hasattr(cls, '_annos_list'):
+            cls._annos_list = annos
+        elif cls._annos_list is not annos:  # FIXME STOP implement a real annos (SyncList) class FFS
+            for a in annos:
+                if a not in cls._annos_list:
+                    cls._annos_list.append(a)
+
+        if not cls._annos or len(cls._annos) < len(annos):  # much faster (as in O(n**2) -> O(1)) to populate once at the start
+            cls._annos.update({a.id:a for a in annos})  # FIXME this fails on deletes...
             if len(cls._annos) != len(annos):
                 print(f'WARNING it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
         try:
@@ -406,11 +465,13 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         self.objects[self.id] = self
         #if self.objects[self.id] is None:
             #printD('WAT', self.id)
-        self._anno = anno
         self.hasAstParent = False
         self.parent  # populate self._replies before the recursive call
         if len(self.objects) == len(annos):
             self.__class__._done_loading = True
+
+    @property
+    def _anno(self): return self._annos[self.id]  # this way updateds to annos will propagate
 
     # protect the original annotation from modification
     @property
