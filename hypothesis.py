@@ -424,7 +424,7 @@ class HypothesisHelper:  # a better HypothesisAnnotation
 
     @classmethod
     def addAnno(cls, anno):
-        return cls.__new__(anno, [anno])
+        return cls(anno, [anno])
 
     @classmethod
     def byId(cls, id_):
