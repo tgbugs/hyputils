@@ -301,6 +301,7 @@ class HypothesisAnnotation:
         self._row = row
         self.type = None
         self.id = row['id']
+        self.created = row['created']
         self.updated = row['updated'][0:19]
         self.user = row['user'].replace('acct:','').replace('@hypothes.is','')
 
