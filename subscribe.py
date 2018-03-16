@@ -12,8 +12,6 @@ import certifi
 import websockets
 import robobrowser
 
-from IPython import embed
-
 
 class Handler:
     def __init__(self, filter_handlers):
@@ -167,7 +165,7 @@ class AnnotationStream:
         self.api_token = api_token
         self.annos = annos
         self.filters = prefilter
-        self.filter_handlers = [handler(self.annos, memoizer) for handler in handler_classes]
+        self.filter_handlers = [handler(self.annos, memoizer=memoizer) for handler in handler_classes]
 
     @staticmethod
     def loop_target(loop, ws_loop):

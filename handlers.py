@@ -34,6 +34,7 @@ class annotationSyncHandler(filterHandler):
             print(f'WARNING: no memoizer has been supplied for f{self.__class__.__name__}')
 
     def handler(self, message):
+        anno = None
         try:
             act = message['options']['action']
             if act != 'create': # update delete
@@ -46,8 +47,8 @@ class annotationSyncHandler(filterHandler):
             #print(len(self.annos), 'annotations.')
             if hasattr(self, 'memoizer'):
                 self.memoizer.memoize_annos(self.annos)
-
-            return anno
+            if anno is not None:
+                return anno
         except KeyError as e:
             embed()
 
@@ -60,8 +61,10 @@ class helperSyncHandler(annotationSyncHandler):
 
     def handler(self, message):
         anno = super().handler(message)
-        for helper in helpers:
-            yield helper(anno, self.annos)
+        out = []  # can't use yield here
+        for helper in self.helpers:
+            out.append(helper(anno, self.annos))
+        return out
 
 
 class slackHandler:

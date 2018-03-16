@@ -416,13 +416,18 @@ class HypothesisAnnotation:
         return not self.__lt__(other)
 
 
+class iterclass(type):
+    def __iter__(self):
+        yield from sorted(self.objects.values())
+
+
 # HypothesisHelper class customized to deal with replacing
 #  exact, text, and tags based on its replies
 #  also for augmenting the annotation with distinct fields
 #  using annotation-text:exact or something like that... (currently using PROTCUR:annotation-exact which is super akward)
 #  eg annotation-text:children to say exactly what the fields are when there needs to be more than one
 #  it is possible to figure most of them out from their content but not always
-class HypothesisHelper:  # a better HypothesisAnnotation
+class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     """ A wrapper around sets of hypothes.is annotations
         with referential structure an pretty printing. """
     objects = {}  # TODO updates # NOTE: all child classes need their own copy of objects
