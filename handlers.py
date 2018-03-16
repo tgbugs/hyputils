@@ -46,8 +46,22 @@ class annotationSyncHandler(filterHandler):
             #print(len(self.annos), 'annotations.')
             if hasattr(self, 'memoizer'):
                 self.memoizer.memoize_annos(self.annos)
+
+            return anno
         except KeyError as e:
             embed()
+
+
+class helperSyncHandler(annotationSyncHandler):
+    def __init__(self, annos, *helpers, memoizer=None):
+        super().__init__(annos, memoizer=memoizer)
+        if helpers:
+            self.helpers = helpers
+
+    def handler(self, message):
+        anno = super().handler(message)
+        for helper in helpers:
+            yield helper(anno, self.annos)
 
 
 class slackHandler:

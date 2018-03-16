@@ -426,6 +426,7 @@ class HypothesisHelper:  # a better HypothesisAnnotation
     """ A wrapper around sets of hypothes.is annotations
         with referential structure an pretty printing. """
     objects = {}  # TODO updates # NOTE: all child classes need their own copy of objects
+    _tagIndex = {}
     _replies = {}
     reprReplies = True
     _embedded = False
@@ -442,6 +443,10 @@ class HypothesisHelper:  # a better HypothesisAnnotation
             return next(v for v in cls.objects.values()).getObjectById(id_)
         except StopIteration as e:
             raise Warning(f'{cls.__name__}.objects has not been populated with annotations yet!') from e
+
+    @classmethod
+    def byTags(cls, *tags):
+        return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
 
     def __new__(cls, anno, annos):
         if not hasattr(cls, '_annos_list'):
@@ -474,12 +479,20 @@ class HypothesisHelper:  # a better HypothesisAnnotation
         self.annos = annos
         self.id = anno.id  # hardset this to prevent shenanigans
         self.objects[self.id] = self
+
         #if self.objects[self.id] is None:
             #printD('WAT', self.id)
         self.hasAstParent = False
         self.parent  # populate self._replies before the recursive call
         if len(self.objects) == len(annos):
             self.__class__._done_loading = True
+            printD('populating tags')
+            for obj in self.objects.values():
+                for tag in obj.tags:
+                    if tag not in self.__class__._tagIndex:
+                        self.__class__._tagIndex[tag] = {obj}
+                    else:
+                        self.__class__._tagIndex[tag].add(obj)
 
     @property
     def _anno(self): return self._annos[self.id]  # this way updateds to annos will propagate
@@ -575,7 +588,8 @@ class HypothesisHelper:  # a better HypothesisAnnotation
 
 
     def __eq__(self, other):
-        return (self.id == other.id and
+        return (type(self) == type(other) and
+                self.id == other.id and
                 self.text == other.text and
                 set(self.tags) == set(other.tags) and
                 self.updated == other.updated)
