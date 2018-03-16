@@ -156,9 +156,7 @@ def setup_websocket(api_token, filters, filter_handlers, websocket_endpoint='wss
                     await process_messages(ws, handler)
             except KeyboardInterrupt:
                 break
-            except SystemExit:
-                break
-            except websockets.exceptions.ConnectionClosed:
+            except (websockets.exceptions.ConnectionClosed, ConnectionResetError) as e:
                 pass
     return ws_loop
 
