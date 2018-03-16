@@ -1,16 +1,16 @@
 #!/usr/bin/env python3.5
 
 import os
-from os import environ
 import asyncio
 import ssl
 import uuid
 import json
+from os import environ
+from threading import Thread
 
 import certifi
 import websockets
 import robobrowser
-
 
 from IPython import embed
 
@@ -161,6 +161,27 @@ def setup_websocket(api_token, filters, filter_handlers, websocket_endpoint='wss
             except websockets.exceptions.ConnectionClosed:
                 pass
     return ws_loop
+
+
+class AnnotationStream:
+    def __init__(self, annos, prefilter, *handler_classes, memoizer=None):
+        from .hypothesis import api_token
+        self.api_token = api_token
+        self.annos = annos
+        self.filters = prefilter
+        self.filter_handlers = [handler(self.annos, memoizer) for handler in handler_classes]
+
+    @staticmethod
+    def loop_target(loop, ws_loop):
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(ws_loop())
+
+    def __call__(self):
+        loop = asyncio.get_event_loop()
+        ws_loop = setup_websocket(self.api_token, self.filters, self.filter_handlers)
+        stream_loop = Thread(target=self.loop_target, args=(loop, ws_loop))
+        return stream_loop 
+
 
 def main():
     from handlers import getFilterHandlers

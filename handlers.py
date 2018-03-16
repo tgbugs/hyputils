@@ -1,6 +1,7 @@
 """
     Implementation of various filter/handler pairs.
 """
+
 import os
 import yaml
 
@@ -20,6 +21,33 @@ class filterHandler:
     def __call__(self, message):
         if self.filter(message):
             self.handler(message)
+
+
+class annotationSyncHandler(filterHandler):
+    def __init__(self, annos, memoizer=None):
+        from .hypothesis import HypothesisAnnotation as ha
+        self.HypothesisAnnotation = ha
+        self.annos = annos
+        if memoizer is not None:
+            self.memoizer = memoizer
+        if not hasattr(self, 'memoizer'):
+            print(f'WARNING: no memoizer has been supplied for f{self.__class__.__name__}')
+
+    def handler(self, message):
+        try:
+            act = message['options']['action']
+            if act != 'create': # update delete
+                mid = message['payload'][0]['id']
+                gone = [_ for _ in self.annos if _.id == mid][0]
+                self.annos.remove(gone)
+            if act != 'delete':  # create update
+                anno = self.HypothesisAnnotation(message['payload'][0])
+                self.annos.append(anno)
+            #print(len(self.annos), 'annotations.')
+            if hasattr(self, 'memoizer'):
+                self.memoizer.memoize_annos(self.annos)
+        except KeyError as e:
+            embed()
 
 
 class slackHandler:

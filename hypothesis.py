@@ -145,6 +145,7 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
                 self.del_anno(id, annos)
 
 
+
 #
 # url helpers
 
@@ -172,6 +173,7 @@ class HypothesisUtils:
         self.app_url = 'https://%s/app' % self.domain
         self.api_url = 'https://%s/api' % self.domain
         self.query_url_template = 'https://%s/api/search?{query}' % self.domain
+        self.search_url_template = 'https://%s/search?q={query}' % self.domain
         self.group = group if group is not None else '__world__'
         self.single_page_limit = 200 if limit is None else limit  # per-page, the api honors limit= up to (currently) 200
         self.multi_page_limit = 200 if max_results is None else max_results  # limit for paginated results
@@ -284,14 +286,19 @@ class HypothesisUtils:
             for row in rows:
                 yield row
 
+    def search_url(self, **params):
+        return self.search_url_template.format(query=urlencode(params, True).replace('=','%3A'))  # = > :
+
+    def query_url(self, **params):
+        return self.query_url_template.format(query=urlencode(params, True))
+
     def search(self, params={}):
         """ Call search API, return a dict """
         if 'offset' not in params:
             params['offset'] = 0
         if 'limit' not in params or 'limit' in params and params['limit'] is None:
             params['limit'] = self.single_page_limit
-        query_url = self.query_url_template.format(query=urlencode(params, True))
-        obj = self.authenticated_api_query(query_url)
+        obj = self.authenticated_api_query(self.query_url(**params))
         return obj
 
 
