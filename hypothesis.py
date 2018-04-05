@@ -612,9 +612,10 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     def _python__repr__(self):
         return f"{self.__class__.__name__}.byId('{self.id}')"
 
-    def __repr__(self, depth=0, format__repr__for_children=''):
+    def __repr__(self, depth=0, format__repr__for_children='', html=False):
         start = '|' if depth else ''
-        t = ' ' * 4 * depth + start
+        SPACE = '&nbsp;' if html else ' '
+        t = SPACE * 4 * depth + start
 
         parent_id =  f"\n{t}parent_id:    {self.parent.id} {self.parent._python__repr__}" if self.parent else ''
         exact_text = f'\n{t}exact:        {self.exact}' if self.exact else ''
@@ -628,8 +629,10 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         replies = ''.join(r.__repr__(depth + 1) for r in self.replies)
         rep_ids = f'\n{t}replies:      ' + ' '.join(r._python__repr__ for r in self.replies)
         replies_text = (f'\n{t}replies:{replies}' if self.reprReplies else rep_ids) if replies else ''
+        link = self.shareLink
+        if html: link = atag(link, link)
         return (f'\n{t.replace("|","")}*--------------------'
-                f"\n{t}{self.__class__.__name__ + ':':<14}{self.shareLink} {self._python__repr__}"
+                f"\n{t}{self.__class__.__name__ + ':':<14}{link} {self._python__repr__}"
                 f'\n{t}user:         {self._anno.user}'
                 f'{parent_id}'
                 f'{exact_text}'
