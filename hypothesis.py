@@ -473,6 +473,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 return self
             else:
                 #printD(f'{self.id} already exists but something has changed')
+                cls._annos[anno.id] = anno  # update to the new anno version
                 self.__init__(anno, annos)  # just updated the underlying refs no worries
                 return self
         except KeyError:
