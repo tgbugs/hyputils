@@ -47,8 +47,8 @@ class annotationSyncHandler(filterHandler):
             #print(len(self.annos), 'annotations.')
             if hasattr(self, 'memoizer'):
                 self.memoizer.memoize_annos(self.annos)
-            if anno is not None:
-                return anno
+
+            return anno  # we can't not return None
         except KeyError as e:
             embed()
 
@@ -62,8 +62,10 @@ class helperSyncHandler(annotationSyncHandler):
     def handler(self, message):
         anno = super().handler(message)
         out = []  # can't use yield here
-        for helper in self.helpers:
-            out.append(helper(anno, self.annos))
+        if anno is not None:
+            for helper in self.helpers:
+                out.append(helper(anno, self.annos))
+
         return out
 
 
