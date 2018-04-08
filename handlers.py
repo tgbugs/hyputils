@@ -24,6 +24,11 @@ class filterHandler:
 
 
 class annotationSyncHandler(filterHandler):
+    class DeletedAnno:
+        deleted = True
+        def __init__(self, id):
+            self.id = id
+
     def __init__(self, annos, memoizer=None):
         from .hypothesis import HypothesisAnnotation as ha
         self.HypothesisAnnotation = ha
@@ -41,6 +46,7 @@ class annotationSyncHandler(filterHandler):
                 mid = message['payload'][0]['id']
                 gone = [_ for _ in self.annos if _.id == mid][0]
                 self.annos.remove(gone)
+                anno = self.DeletedAnno(mid)
             if act != 'delete':  # create update
                 anno = self.HypothesisAnnotation(message['payload'][0])
                 self.annos.append(anno)
@@ -62,11 +68,14 @@ class helperSyncHandler(annotationSyncHandler):
     def handler(self, message):
         anno = super().handler(message)
         out = []  # can't use yield here
-        if anno is not None:
-            for helper in self.helpers:
-                out.append(helper(anno, self.annos))
 
-        return out
+        if anno is None:
+            raise TypeError(f'anno should not be None! Bad message:\n{message}')
+
+        for helper in self.helpers:
+            out.append(helper(anno, self.annos))
+
+        return tuple(_ for _ in out if _ is not None)
 
 
 class slackHandler:

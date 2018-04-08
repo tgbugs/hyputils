@@ -462,7 +462,18 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                     cls._annos_list.append(a)
             annos = cls._annos_list
 
+        if hasattr(anno, 'deleted'):
+            if anno.id in cls._annos:  # it is set to True by convetion
+                cls._annos.pop(anno.id)  # insurance
+            #else:
+                #print("It's ok we already deleted", anno.id)
+            if anno.id in cls.objects:
+                cls.objects.pop(anno.id)  # this is what we were missing
+                #print('Found the sneek.', anno.id)
+            return  # our job here is done
+
         if not cls._annos or len(cls._annos) < len(annos):  # much faster (as in O(n**2) -> O(1)) to populate once at the start
+            # we should not need `if not a.deleted` because a should not be in annos
             cls._annos.update({a.id:a for a in annos})  # FIXME this fails on deletes...
             if len(cls._annos) != len(annos):
                 print(f'WARNING it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
@@ -613,7 +624,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     def _python__repr__(self):
         return f"{self.__class__.__name__}.byId('{self.id}')"
 
-    def __repr__(self, depth=0, format__repr__for_children='', html=False):
+    def __repr__(self, depth=0, format__repr__for_children='', html=False, number='*'):
         start = '|' if depth else ''
         SPACE = '&nbsp;' if html else ' '
         t = SPACE * 4 * depth + start
@@ -632,7 +643,8 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         replies_text = (f'\n{t}replies:{replies}' if self.reprReplies else rep_ids) if replies else ''
         link = self.shareLink
         if html: link = atag(link, link)
-        return (f'\n{t.replace("|","")}*--------------------'
+        startn = '\n' if not isinstance(number, int) or number > 1 else ''
+        return (f'{startn}{t.replace("|","")}{number:-<20}'
                 f"\n{t}{self.__class__.__name__ + ':':<14}{link} {self._python__repr__}"
                 f'\n{t}user:         {self._anno.user}'
                 f'{parent_id}'
@@ -641,5 +653,5 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 f'{tag_text}'
                 f'{replies_text}'
                 f'{format__repr__for_children}'
-                f'\n{t}____________________')
+                f'\n{t}{"":_<20}')
 
