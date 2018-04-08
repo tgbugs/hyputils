@@ -512,6 +512,14 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                         self.__class__._tagIndex[tag].add(obj)
 
     @property
+    def classn(self):
+        return self.__class__.__name__
+
+    @property
+    def _repr(self):
+        return self.classn + f".byId('{self.id}')"
+
+    @property
     def _anno(self): return self._annos[self.id]  # this way updateds to annos will propagate
 
     # protect the original annotation from modification
@@ -557,9 +565,9 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 #print('Problem in', self.shareLink)  # must come after self.objects[id_] = None else RecursionError
                 if not self._recursion_blocker:
                     if self._type == 'reply':
-                        print('Orphaned reply', self.shareLink, f"{self.__class__.__name__}.byId('{self.id}')")
+                        print('Orphaned reply', self.shareLink, f"{self.classn}.byId('{self.id}')")
                     else:
-                        print('Problem in', self.shareLink, f"{self.__class__.__name__}.byId('{self.id}')")
+                        print('Problem in', self.shareLink, f"{self.classn}.byId('{self.id}')")
                 return None
             else:
                 h = self.__class__(anno, self.annos)
@@ -569,8 +577,11 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     def shareLink(self):
         self._recursion_blocker = True
         if self.parent is not None:
+            link = self.parent.shareLink
+            # call link before unset recursion to prevent cases
+            # where an intermediate parent was deleted
             self._recursion_blocker = False
-            return self.parent.shareLink
+            return link
         else:
             self._recursion_blocker = False
             return shareLinkFromId(self.id)
