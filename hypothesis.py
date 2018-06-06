@@ -71,8 +71,8 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
             return []
 
     def add_missing_annos(self, annos):
-        offset = 0
         limit = 200
+        offset = len(annos)
         done = False
         while not done:
             new_annos = self.get_annos_from_api(offset, limit)
