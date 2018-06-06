@@ -28,18 +28,19 @@ print(api_token, username, group)  # sanity check
 # annotation retrieval and memoization
 
 class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
-    def __init__(self, memoization_file, api_token=api_token, username=username, group=group):
+    def __init__(self, memoization_file, api_token=api_token, username=username, group=group, max_results=100000):
         self.api_token = api_token
         self.username = username
         self.group = group
         self.memoization_file = memoization_file
+        self.max_results = max_results
 
     def __call__(self):
         return self.get_annos()
 
     def get_annos_from_api(self, offset=0, limit=None):
         print('yes we have to start from here')
-        h = HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=100000)
+        h = HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=self.max_results)
         params = {'offset':offset,
                   'group':h.group}
         if self.group == '__world__':
