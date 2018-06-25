@@ -4,7 +4,6 @@ python utilites for working with the hypothes.is api and websocket interface
 ## Dependencies
 beautifulsoup
 certifi
-pyontutils
 requests
 robobrowser
 websockets
@@ -19,6 +18,13 @@ zdesk_password: your_token_or_password
 zdesk_token: True
 
 ```
+
+## Usage
+hyputils checks the following enviornment variables
+1. `HYP_API_TOKEN` is your api token.
+2. `HYP_USERNAME` is your username (not strictly required).
+3. `HYP_GROUP` is the 8 char group identifier.
+
 # Fun!
 If you never modify your annotations, but instead
 only add new replies to modify them you can view a
