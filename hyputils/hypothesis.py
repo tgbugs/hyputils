@@ -38,10 +38,15 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
     def __call__(self):
         return self.get_annos()
 
+    def h(self):
+        return HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=self.max_results)
+
     def get_annos_from_api(self, offset=0, limit=None):
-        print('yes we have to start from here')
-        h = HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=self.max_results)
+        print('yes we have to start from offset', offset)
+        h = self.h()
         params = {'offset':offset,
+                  'order':'asc',  # order asc to prevent gaps and allow incremental memoization
+                  'sort':'updated',
                   'group':h.group}
         if self.group == '__world__':
             params['user'] = self.username
@@ -73,8 +78,18 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
     def add_missing_annos(self, annos):
         limit = 200
         offset = len(annos)
+        # the hypothes.is api search returns desc by default now
+        # which is problematic since you have to wait for all the missing
+        # annos to update, otherwise you may have an unknown missing gap
+        # new success, new failed, old ...
         done = False
+        first = True
+        n_missing = 0
         while not done:
+            # assert len(annos) == offset - n_missing  # invariant holds until we get to the last block
+            # NOTE if there are annos missing from hypothesis then the number
+            # of memoized annos will be n_missing - offset
+            # this is correct behavior
             new_annos = self.get_annos_from_api(offset, limit)
             offset += limit
             if not new_annos:
@@ -82,9 +97,20 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
             for anno in new_annos:
                 if anno not in annos:  # this will catch edits
                     annos.append(anno)
+                elif first:
+                    n_missing += 1
                 else:
                     done = True
                     break  # assume that annotations return newest first
+            else:
+                if first:
+                    first = False
+                    if n_missing == limit:
+                        # TODO raise?
+                        print('WARNING: you are missing an entire block worth of '
+                              'annotations, you should redownload from scratch!')
+                    print('the hypothes.is api is missing', n_missing, 'annotations, probably because they were deleted')
+                self.memoize_annos(annos)
 
     def memoize_annos(self, annos):  # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
@@ -247,6 +273,12 @@ class HypothesisUtils:
         except:
             print(traceback.print_exc())
             r = None  # if we get here someone probably ran the bookmarklet from firefox or the like
+        return r
+
+    def head_annotation(self, id):
+        # used as a 'kind' way to look for deleted annotations
+        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        r = requests.head(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def get_annotation(self, id):
