@@ -29,6 +29,8 @@ print(api_token, username, group)  # sanity check
 
 class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
     def __init__(self, memoization_file, api_token=api_token, username=username, group=group, max_results=100000):
+        if api_token == 'TOKEN':
+            print('\x1b[31mWARNING:\x1b[0m NO API TOKEN HAS BEEN SET!')
         self.api_token = api_token
         self.username = username
         self.group = group
