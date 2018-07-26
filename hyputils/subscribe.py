@@ -139,7 +139,6 @@ def setup_websocket(api_token, filters, filter_handlers, websocket_endpoint='wss
         #filter_handlers = getFilterHandlers()
         handler = Handler(filter_handlers)
         ssl_context = _ssl_context(verify=True)
-        
 
         headers = {'Authorization': 'Bearer ' + api_token}
         extra_headers.update(headers)

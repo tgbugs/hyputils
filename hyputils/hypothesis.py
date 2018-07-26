@@ -27,6 +27,12 @@ print(api_token, username, group)  # sanity check
 
 # annotation retrieval and memoization
 
+class NotOkError(Exception):
+    def __init__(self, message, request):
+        self.status_code = request.status_code
+        self.reason = request.reason
+        super().__init__(message)
+
 class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
     def __init__(self, memoization_file, api_token=api_token, username=username, group=group, max_results=100000):
         if api_token == 'TOKEN':
@@ -216,10 +222,14 @@ class HypothesisUtils:
 
     def authenticated_api_query(self, query_url=None):
         try:
-           headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
-           r = requests.get(query_url, headers=headers)
-           obj = json.loads(r.text)
-           return obj
+            headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8'}
+            r = requests.get(query_url, headers=headers)
+            obj = r.json()
+            if r.ok:
+                return obj
+            else:
+                raise NotOkError(f'response was not ok! {r.reason} {obj}', r)
+
         except requests.exceptions.SSLError as e:
             if self.ssl_retry < 5:
                 self.ssl_retry += 1
