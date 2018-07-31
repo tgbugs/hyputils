@@ -49,12 +49,12 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
     def h(self):
         return HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=self.max_results)
 
-    def get_annos_from_api(self, offset=0, limit=None):
+    def get_annos_from_api(self, offset=0, limit=None, order='asc', sort='updated'):
         print('yes we have to start from offset', offset)
         h = self.h()
         params = {'offset':offset,
-                  'order':'asc',  # order asc to prevent gaps and allow incremental memoization
-                  'sort':'updated',
+                  'order':order,  # order asc to prevent gaps and allow incremental memoization
+                  'sort':sort,
                   'group':h.group}
         if self.group == '__world__':
             params['user'] = self.username
@@ -496,6 +496,18 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
     @classmethod
     def byTags(cls, *tags):
+        if not cls._tagIndex:
+            printD('populating tags')
+            # FIXME extremely inefficient on update
+            # and we want this to update as replies appear
+            # not all at once...
+            for obj in self.objects.values():
+                for tag in obj.tags:
+                    if tag not in self.__class__._tagIndex:
+                        self.__class__._tagIndex[tag] = {obj}
+                    else:
+                        self.__class__._tagIndex[tag].add(obj)
+
         return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
 
     def __new__(cls, anno, annos):
@@ -548,13 +560,6 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         self.parent  # populate self._replies before the recursive call
         if len(self.objects) == len(annos):
             self.__class__._done_loading = True
-            printD('populating tags')
-            for obj in self.objects.values():
-                for tag in obj.tags:
-                    if tag not in self.__class__._tagIndex:
-                        self.__class__._tagIndex[tag] = {obj}
-                    else:
-                        self.__class__._tagIndex[tag].add(obj)
 
     @property
     def classn(self):
