@@ -501,12 +501,12 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             # FIXME extremely inefficient on update
             # and we want this to update as replies appear
             # not all at once...
-            for obj in self.objects.values():
+            for obj in cls.objects.values():
                 for tag in obj.tags:
-                    if tag not in self.__class__._tagIndex:
-                        self.__class__._tagIndex[tag] = {obj}
+                    if tag not in cls._tagIndex:
+                        cls._tagIndex[tag] = {obj}
                     else:
-                        self.__class__._tagIndex[tag].add(obj)
+                        cls._tagIndex[tag].add(obj)
 
         return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
 
