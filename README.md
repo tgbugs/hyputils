@@ -1,4 +1,5 @@
 # hyputiles
+[![PyPI version](https://badge.fury.io/py/hyputils.svg)](https://pypi.org/project/hyputils/)
 python utilites for working with the hypothes.is api and websocket interface
 
 ## Dependencies
