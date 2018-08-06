@@ -4,14 +4,14 @@ from setuptools import setup, find_packages
 
 setup(name='hyputils',
       version='0.0.1',
-      description='Python utilites for the Hypothes.is REST api and websocket interface',
+      description='Python utilities for the Hypothes.is REST api and websocket interface',
       long_description=' ',
       url='https://github.com/tgbugs/hyputils',
       author='Tom Gillespie',
       author_email='tgbugs@gmail.com',
       license='MIT',
       classifiers=[],
-      keywords='hypothesis hypothes.is',
+      keywords='hypothesis hypothes.is web annotation',
       packages=['hyputils'],
       install_requires=[
           'beautifulsoup4',
