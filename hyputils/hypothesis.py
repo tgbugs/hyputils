@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import print_function
+import os
 import json
 import pickle
 import requests
 import traceback
-from os import environ
+from os import environ, chmod
 
 try:
     from urllib.parse import urlencode
@@ -123,8 +124,16 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
     def memoize_annos(self, annos):  # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
             print(f'annos updated, memoizing new version with, {len(annos)} members')
+            do_chmod = False
+            if not os.path.exists(self.memoization_file):
+                do_chmod = True
+
             with open(self.memoization_file, 'wb') as f:
                 pickle.dump(annos, f)
+
+            if do_chmod:
+                chmod(self.memoization_file, 0o600)
+
         else:
             print(f'No memoization file, not saving.')
 
