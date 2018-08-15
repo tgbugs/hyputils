@@ -78,7 +78,15 @@ class helperSyncHandler(annotationSyncHandler):
         return tuple(_ for _ in out if _ is not None)
 
 
-class slackHandler:
+class websocketServerHandler(filterHandler):
+    def __init__(self, send_to_server):
+        self.send = send_to_server
+
+    def handler(self, message):
+        self.send(message)
+
+
+class slackHandler(filterHandler):
     def __init__(self, api_token):
         self.api_token = api_token
     

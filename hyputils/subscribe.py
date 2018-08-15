@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.5
+#!/usr/bin/env python3.6
 
 import os
 import asyncio
@@ -179,15 +179,67 @@ class AnnotationStream:
 
 
 def main():
-    from handlers import getFilterHandlers
+    from socket import socketpair
+    from handlers import getFilterHandlers, websocketServerHandler
     loop = asyncio.get_event_loop()
 
-    api_token = environ.get('HYPUSH_API_TOKEN', 'TOKEN')
-    groups = environ.get('HYPUSH_GROUPS', '__world__').split(' ')
+    subscribed = {}
+    def send_message(d):
+        for send in subscribed.values():
+            send(json.dumps(d).encode())
+
+    wssh = websocketServerHandler(send_message)
+
+    async def incoming_handler(websocket, path):
+        try:
+            await websocket.recv()  # do nothing except allow us to detect unsubscribe
+        except websockets.exceptions.ConnectionClosed as e:
+            pass  # working as expected
+
+    async def outgoing_handler(websocket, path, reader):
+        while True:
+            message = await reader.readline()
+            await websocket.send(message)
+
+    async def conn_handler(websocket, path, reader):
+        i_task = asyncio.ensure_future(incoming_handler(websocket, path))
+        o_task = asyncio.ensure_future(outgoing_handler(websocket, path, reader))
+        done, pending = await asyncio.wait([i_task, o_task], return_when=asyncio.FIRST_COMPLETED)
+        for task in pending:
+            task.cancel()
+
+    async def subscribe(websocket, path):
+        name = await websocket.recv()
+        print(f"< {name}")
+        greeting = f"Hello {name}! You are now subscribed to cat facts!\n{list(subscribed)} are also subscribed to cat facts!"
+        rsock, wsock = socketpair()
+        reader, writer = await asyncio.open_connection(sock=rsock, loop=loop)
+        for send_something in subscribed.values():
+            msg = f'{name} also subscribed to cat facts!'.encode()
+            send_something(msg)
+
+        def send(bytes_, s=wsock.send):
+            s(bytes_)
+            s(b'\n')
+
+        subscribed[name] = send  # _very_ FIXME
+        await websocket.send(greeting)
+        print(f"> {greeting}")
+        await conn_handler(websocket, path, reader)  # when this completes the connection is closed
+        subscribed.pop(name)
+        for send_something in subscribed.values():
+            msg = f'{name} unsubscribed from cat facts!'.encode()
+            send_something(msg)
+
+    start_server = websockets.serve(subscribe, 'localhost', 5050)
+    loop.run_until_complete(start_server)  # TODO need this wrapped so that loop can be passed in
+
+    api_token = environ.get('HYP_API_TOKEN', 'TOKEN')
+    groups = environ.get('HYP_GROUPS', '__world__').split(' ')
     filters = preFilter(groups=groups).export()
-    filter_handlers = getFilterHandlers()
+    filter_handlers = getFilterHandlers() + [wssh]
     print(groups)
-    ws_loop, exit_val = setup_websocket(api_token, filters, filter_handlers)
+    ws_loop = setup_websocket(api_token, filters, filter_handlers)
 
     loop.run_until_complete(ws_loop())
 
