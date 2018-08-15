@@ -21,7 +21,7 @@ async def hello():
         print(f"< {greeting}")
         while True:
             print('waiting for next message')
-            print((await websocket.recv()).decode())
+            print(await websocket.recv())
 
 asyncio.get_event_loop().run_until_complete(hello())
 

@@ -199,7 +199,7 @@ def main():
     async def outgoing_handler(websocket, path, reader):
         while True:
             message = await reader.readline()
-            await websocket.send(message)
+            await websocket.send(message.decode())
 
     async def conn_handler(websocket, path, reader):
         i_task = asyncio.ensure_future(incoming_handler(websocket, path))
@@ -209,13 +209,13 @@ def main():
             task.cancel()
 
     async def subscribe(websocket, path):
-        name = await websocket.recv()
+        name = await websocket.recv()  # this is not needed...
         print(f"< {name}")
-        greeting = f"Hello {name}! You are now subscribed to cat facts!\n{list(subscribed)} are also subscribed to cat facts!"
+        greeting = json.dumps(f"Hello {name}! You are now subscribed to cat facts!\n{list(subscribed)} are also subscribed to cat facts!")
         rsock, wsock = socketpair()
         reader, writer = await asyncio.open_connection(sock=rsock, loop=loop)
         for send_something in subscribed.values():
-            msg = f'{name} also subscribed to cat facts!'.encode()
+            msg = json.dumps(f'{name} also subscribed to cat facts!').encode()
             send_something(msg)
 
         def send(bytes_, s=wsock.send):
@@ -228,7 +228,7 @@ def main():
         await conn_handler(websocket, path, reader)  # when this completes the connection is closed
         subscribed.pop(name)
         for send_something in subscribed.values():
-            msg = f'{name} unsubscribed from cat facts!'.encode()
+            msg = json.dumps(f'{name} unsubscribed from cat facts!').encode()
             send_something(msg)
 
     start_server = websockets.serve(subscribe, 'localhost', 5050)
