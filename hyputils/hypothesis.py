@@ -633,7 +633,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 return h
 
     @property
-    def shareLink(self):
+    def shareLink(self):  # FIXME just look it up?!
         self._recursion_blocker = True
         if self.parent is not None:
             link = self.parent.shareLink
@@ -644,6 +644,10 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         else:
             self._recursion_blocker = False
             return shareLinkFromId(self.id)
+
+    @property
+    def htmlLink(self):
+        return self._anno._row['links']['html']
 
     @property
     def parent(self):
