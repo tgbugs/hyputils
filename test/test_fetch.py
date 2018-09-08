@@ -6,6 +6,10 @@ get_annos = AnnoFetcher(api_token, username, group)
 
 
 class TestFetch(unittest.TestCase):
+    def test_no_limit(self):
+        annos = get_annos.get_annos_from_api()
+        assert len(annos) > 800
+
     def test_max_results(self):
         annos = get_annos.get_annos_from_api(max_results=400)
 

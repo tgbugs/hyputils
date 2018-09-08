@@ -80,15 +80,10 @@ class AnnoFetcher:
             params['search_after'] = search_after
         if self.group == '__world__':
             params['user'] = self.username
-        if limit is None:
-            rows = h.search_all(params, max_results=max_results, stop_at=stop_at)
-        else:
+        if limit is not None:
             params['limit'] = limit
-            obj = h.search(params)
-            rows = obj['rows']
-            if 'replies' in obj:
-                rows += obj['replies']
-        for row in rows:
+
+        for row in h.search_all(params, max_results=max_results, stop_at=stop_at):
             yield row
 
     def get_annos_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
@@ -123,10 +118,9 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
         return annos, last_sync_updated
 
     def add_missing_annos(self, annos, last_sync_updated):
-        limit = 200
         search_after = last_sync_updated
         # start from last_sync_updated because we assume that the websocket is unreliable
-        new_annos = self.get_annos_from_api(search_after, limit)
+        new_annos = self.get_annos_from_api(search_after)
         if not new_annos:
             return annos
         ag, ang = annos[0].group, new_annos[0].group
