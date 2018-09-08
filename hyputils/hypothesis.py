@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 import os
+from os import environ, chmod
 import json
 import pickle
+import logging
 import requests
-import traceback
-from os import environ, chmod
+from collections import Counter
 
 try:
     from urllib.parse import urlencode
@@ -24,7 +25,23 @@ except ImportError:
 api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
 username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
-print(api_token, username, group)  # sanity check
+
+if 'CI' not in environ:
+    print(api_token, username, group)  # sanity check
+
+
+def makeSimpleLogger(name):
+    # TODO use extra ...
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()  # FileHander goes to disk
+    formatter = logging.Formatter('[%(asctime)s] - %(levelname)s - %(name)s - %(message)s')  # TODO file and lineno ...
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+    return logger
+
+
+hyp_logger = makeSimpleLogger('hyputils.hypothesis')
 
 # annotation retrieval and memoization
 
@@ -105,14 +122,13 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
 
         return annos, last_sync_updated
 
-    def add_missing_annos(self, annos):
+    def add_missing_annos(self, annos, last_sync_updated):
         limit = 200
-        search_after = annos.last_sync_updated
+        search_after = last_sync_updated
         # start from last_sync_updated because we assume that the websocket is unreliable
         new_annos = self.get_annos_from_api(search_after, limit)
         if not new_annos:
             return annos
-        new_lsu = new_annos.lsu
         ag, ang = annos[0].group, new_annos[0].group
         if ag != ang:
             raise ValueError(f'Groups do not match! {ag} {ang}')
@@ -135,14 +151,13 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
         print('added', lmuc - la, 'new annotations')
         print('updated', ld, 'annotations')
 
-        merged_unique.last_sync_updated = new_lsu
-
         if la != lmuc or dupes:
-            self.memoize_annos(annos)
+            self.memoize_annos(merged_unique)
 
         return merged_unique
 
-    def memoize_annos(self, annos):  # FIXME if there are multiple ws listeners we will have race conditions?
+    def memoize_annos(self, annos):
+        # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
             print(f'annos updated, memoizing new version with, {len(annos)} members')
             do_chmod = False
@@ -150,7 +165,8 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
                 do_chmod = True
 
             with open(self.memoization_file, 'wb') as f:
-                pickle.dump(annos, f)
+                alsu = annos, annos[-1].updated
+                pickle.dump(alsu, f)
 
             if do_chmod:
                 chmod(self.memoization_file, 0o600)
@@ -159,13 +175,13 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
             print(f'No memoization file, not saving.')
 
     def get_annos(self):
-        annos = self.get_annos_from_file()
+        annos, last_sync_updated = self.get_annos_from_file()
         if not annos:
             new_annos = self.get_annos_from_api()
             self.memoize_annos(new_annos)
             return new_annos
         else:
-            return self.add_missing_annos(annos)
+            return self.add_missing_annos(annos, last_sync_updated)
 
     def add_anno(self, anno, annos):
         annos.append(anno)
@@ -208,8 +224,6 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
             elif resp.request.method == 'DELETE':
                 id = resp.json()['id']
                 self.del_anno(id, annos)
-
-
 
 #
 # url helpers
@@ -266,13 +280,11 @@ class HypothesisUtils:
                 return self.authenticated_api_query(query_url)
             else:
                 self.ssl_retry = 0
-                print(e)
-                print(traceback.print_exc())
+                hyp_logger.error(e)
                 return {'ERROR':True, 'rows':tuple()}
         except BaseException as e:
-            print(e)
+            hyp_logger.error(e)
             #print('Request, status code:', r.status_code)  # this causes more errors...
-            print(traceback.print_exc())
             return {'ERROR':True, 'rows':tuple()}
 
     def make_annotation_payload_with_target_using_only_text_quote(self, url, prefix, exact, suffix, text, tags):
@@ -311,8 +323,8 @@ class HypothesisUtils:
         payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact, suffix, text, tags)
         try:
             r = self.post_annotation(payload)
-        except:
-            print(traceback.print_exc())
+        except BaseException as e:
+            hyp_logger.error(e)
             r = None  # if we get here someone probably ran the bookmarklet from firefox or the like
         return r
 
@@ -468,8 +480,9 @@ class HypothesisAnnotation:
             if self.references == [] and self.target is not None and len(self.target) and isinstance(self.target,list) and 'selector' not in self.target[0]:
                 self.is_page_note = True
                 self.type = 'pagenote'
-        except:
-            traceback.print_exc()
+        except BaseException as e:
+            hyp_logger.error(e)
+
         if 'document' in row and 'link' in row['document']:
             self.links = row['document']['link']
             if not isinstance(self.links, list):
@@ -488,16 +501,16 @@ class HypothesisAnnotation:
                             self.prefix = selector['prefix']
                             self.exact = selector['exact']
                             self.suffix = selector['suffix']
-                        except:
-                            traceback.print_exc()
+                        except BaseException as e:
+                            hyp_logger.error(e)
                     if 'type' in selector and selector['type'] == 'TextPositionSelector' and 'start' in selector:
                         self.start = selector['start']
                         self.end = selector['end']
                     if 'type' in selector and selector['type'] == 'FragmentSelector' and 'value' in selector:
                         self.fragment_selector = selector['value']
 
-        except:
-            print(traceback.format_exc())
+        except BaseException as e:
+            hyp_logger.error(e)
 
     @property
     def group(self): return self._row['group']

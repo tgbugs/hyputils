@@ -1,7 +1,6 @@
 import unittest
 from hyputils.hypothesis import AnnoFetcher
 from hyputils.hypothesis import api_token, username, group
-from IPython import embed
 
 get_annos = AnnoFetcher(api_token, username, group)
 
