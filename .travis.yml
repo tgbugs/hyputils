@@ -1,0 +1,27 @@
+# https://travis-ci.org/tgbugs/hyputils
+sudo: false
+language: python
+env:
+  global:
+    - PIPENV_VENV_IN_PROJECT=1
+    - PIPENV_IGNORE_VIRTUALENVS=1
+branches:
+  only:
+    - master
+  git:
+    depth: 3
+
+python:
+  - 3.6
+  - 3.7
+
+install:
+  - pip install pipenv
+  - pip install coverage coveralls nose-timer && export HAS_COVERALLS=1
+  - pipenv install --system --skip-lock
+
+script:
+  - PYTHONWARNINGS=default pipenv run nosetests --with-coverage --cover-tests --cover-package=pyontutils
+
+after_success:
+  - if [[ $HAS_COVERALLS ]] ; then coveralls ; fi

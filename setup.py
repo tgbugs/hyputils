@@ -13,6 +13,7 @@ setup(name='hyputils',
       classifiers=[],
       keywords='hypothesis hypothes.is web annotation',
       packages=['hyputils'],
+      python_requires='>=3.6',
       install_requires=[
           'beautifulsoup4',
           'certifi',

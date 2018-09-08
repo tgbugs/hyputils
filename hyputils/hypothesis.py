@@ -49,7 +49,7 @@ class AnnoFetcher:
     def h(self):
         return HypothesisUtils(username=self.username, token=self.api_token, group=self.group)
 
-    def get_annos_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
+    def yield_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
         # use stop before if you want to be evil and hit the api in parallel
         print('fetching after', search_after)
         # hard code these to simplify assumptions
@@ -71,8 +71,15 @@ class AnnoFetcher:
             rows = obj['rows']
             if 'replies' in obj:
                 rows += obj['replies']
-        annos = [HypothesisAnnotation(row) for row in rows]
-        return annos
+        for row in rows:
+            yield row
+
+    def get_annos_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
+        return [HypothesisAnnotation(r) for r in
+                self.yield_from_api(search_after=search_after,
+                                    limit=limit,
+                                    max_results=max_results,
+                                    stop_at=stop_at)]
 
 
 class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
@@ -341,9 +348,13 @@ class HypothesisUtils:
         """Call search API with pagination, return rows """
         sort_by = params['sort'] if 'sort' in params else 'updated'
         if stop_at:
+            if not isinstance(stop_at, str):
+                raise TypeError('stop_at should be a string')
+
             dont_stop = (lambda r: r[sort_by] <= stop_at  # when ascending things less than stop are ok
                          if 'order' in params and params['order'] == 'asc'
                          else lambda r: r[sort_by] >= stop_at)
+
         #sup_inf = max if params['order'] = 'asc' else min  # api defaults to desc
         # trust that rows[-1] works rather than potentially messsing stuff if max/min work differently
         nresults = 0
@@ -401,7 +412,7 @@ class HypothesisAnnotation:
         self.type = None
         self.id = row['id']
         self.created = row['created']
-        self.updated = row['updated'][0:19]
+        self.updated = row['updated']
         self.user = row['user'].replace('acct:','').replace('@hypothes.is','')
 
         if 'uri' in row:    # should it ever not?
