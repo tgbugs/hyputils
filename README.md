@@ -1,5 +1,7 @@
 # hyputils
 [![PyPI version](https://badge.fury.io/py/hyputils.svg)](https://pypi.org/project/hyputils/)
+[![Build Status](https://travis-ci.org/tgbugs/hyputils.svg?branch=master)](https://travis-ci.org/tgbugs/hyputils)
+[![Coverage Status](https://coveralls.io/repos/github/tgbugs/hyputils/badge.svg?branch=master)](https://coveralls.io/github/tgbugs/hyputils?branch=master)
 
 python utilities for working with the hypothes.is api and websocket interface
 
