@@ -34,33 +34,37 @@ class NotOkError(Exception):
         self.reason = request.reason
         super().__init__(message)
 
-class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
-    def __init__(self, memoization_file, api_token=api_token, username=username, group=group, max_results=100000):
+
+class AnnoFetcher:
+    def __init__(self, api_token=api_token, username=username, group=group):
         if api_token == 'TOKEN':
             print('\x1b[31mWARNING:\x1b[0m NO API TOKEN HAS BEEN SET!')
         self.api_token = api_token
         self.username = username
         self.group = group
-        self.memoization_file = memoization_file
-        self.max_results = max_results
 
     def __call__(self):
         return self.get_annos()
 
     def h(self):
-        return HypothesisUtils(username=self.username, token=self.api_token, group=self.group, max_results=self.max_results)
+        return HypothesisUtils(username=self.username, token=self.api_token, group=self.group)
 
-    def get_annos_from_api(self, offset=0, limit=None, order='asc', sort='updated'):
-        print('yes we have to start from offset', offset)
+    def get_annos_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
+        # use stop before if you want to be evil and hit the api in parallel
+        print('fetching after', search_after)
+        # hard code these to simplify assumptions
+        order = 'asc'
+        sort = 'updated'
         h = self.h()
-        params = {'offset':offset,
-                  'order':order,  # order asc to prevent gaps and allow incremental memoization
+        params = {'order':order,
                   'sort':sort,
                   'group':h.group}
+        if search_after:
+            params['search_after'] = search_after
         if self.group == '__world__':
             params['user'] = self.username
         if limit is None:
-            rows = h.search_all(params)
+            rows = h.search_all(params, max_results=max_results, stop_at=stop_at)
         else:
             params['limit'] = limit
             obj = h.search(params)
@@ -70,56 +74,66 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
         annos = [HypothesisAnnotation(row) for row in rows]
         return annos
 
+
+class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
+    def __init__(self, memoization_file, api_token=api_token, username=username, group=group):
+        super().__init__(api_token=api_token, username=username, group=group)
+        self.memoization_file = memoization_file
+
     def get_annos_from_file(self):
+        annos = []
+        last_sync_updated = None
         if self.memoization_file is not None:
             try:
                 with open(self.memoization_file, 'rb') as f:
-                    annos = pickle.load(f)
+                    annos_lsu = pickle.load(f)
+                    annos, last_sync_updated = annos_lsu
+                    if isinstance(last_sync_updated, HypothesisAnnotation):
+                        annos = annos_lsu
+                        last_sync_updated = last_sync_updated['updated']
                 if annos is None:
-                    return []
-                else:
-                    return annos
+                    raise ValueError('wat')
             except FileNotFoundError:
-                return []
-        else:
-            return []
+                print('{self.memoization_file} does not exist')
+
+        return annos, last_sync_updated
 
     def add_missing_annos(self, annos):
         limit = 200
-        offset = len(annos)
-        # the hypothes.is api search returns desc by default now
-        # which is problematic since you have to wait for all the missing
-        # annos to update, otherwise you may have an unknown missing gap
-        # new success, new failed, old ...
-        done = False
-        first = True
-        n_missing = 0
-        while not done:
-            # assert len(annos) == offset - n_missing  # invariant holds until we get to the last block
-            # NOTE if there are annos missing from hypothesis then the number
-            # of memoized annos will be n_missing - offset
-            # this is correct behavior
-            new_annos = self.get_annos_from_api(offset, limit)
-            offset += limit
-            if not new_annos:
-                break
-            for anno in new_annos:
-                if anno not in annos:  # this will catch edits
-                    annos.append(anno)
-                elif first:
-                    n_missing += 1
-                else:
-                    done = True
-                    break  # assume that annotations return newest first
-            else:
-                if first:
-                    first = False
-                    if n_missing == limit:
-                        # TODO raise?
-                        print('WARNING: you are missing an entire block worth of '
-                              'annotations, you should redownload from scratch!')
-                    print('the hypothes.is api is missing', n_missing, 'annotations, probably because they were deleted')
-                self.memoize_annos(annos)
+        search_after = annos.last_sync_updated
+        # start from last_sync_updated because we assume that the websocket is unreliable
+        new_annos = self.get_annos_from_api(search_after, limit)
+        if not new_annos:
+            return annos
+        new_lsu = new_annos.lsu
+        ag, ang = annos[0].group, new_annos[0].group
+        if ag != ang:
+            raise ValueError(f'Groups do not match! {ag} {ang}')
+        merged = annos + new_annos
+        merged_unique = sorted(set(merged), key=lambda a: a.updated)
+        dupes = [sorted([a for a in merged_unique if a.id == id], key=lambda a: a.updated)
+                for id, count in Counter(anno.id for anno in merged_unique).most_common()
+                if count > 1]
+
+        will_stay = [dupe[-1] for dupe in dupes]
+        to_remove = [a for dupe in dupes for a in dupe[:-1]]
+
+        la = len(annos)
+        ld = len(dupes)
+        lm = len(merged)
+        lmu = len(merged_unique)
+        [merged_unique.remove(d) for d in to_remove]  # FIXME in the db context these need to be updates
+        lmuc = len(merged_unique)
+
+        print('added', lmuc - la, 'new annotations')
+        print('updated', ld, 'annotations')
+
+        merged_unique.last_sync_updated = new_lsu
+
+        if la != lmuc or dupes:
+            self.memoize_annos(annos)
+
+        return merged_unique
 
     def memoize_annos(self, annos):  # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
@@ -141,10 +155,10 @@ class Memoizer:  # TODO the 'idea' solution to this is a self-updating list that
         annos = self.get_annos_from_file()
         if not annos:
             new_annos = self.get_annos_from_api()
-            annos.extend(new_annos)
-        self.add_missing_annos(annos)
-        self.memoize_annos(annos)
-        return sorted(annos, key=lambda a: a.updated)
+            self.memoize_annos(new_annos)
+            return new_annos
+        else:
+            return self.add_missing_annos(annos)
 
     def add_anno(self, anno, annos):
         annos.append(anno)
@@ -205,7 +219,7 @@ def shareLinkFromId(id_):
 
 class HypothesisUtils:
     """ services for authenticating, searching, creating annotations """
-    def __init__(self, username=None, token=None, group=None, domain=None, max_results=None, limit=None):
+    def __init__(self, username=None, token=None, group=None, domain=None, limit=None):
         if domain is None:
             self.domain = 'hypothes.is'
         else:
@@ -220,7 +234,6 @@ class HypothesisUtils:
         self.search_url_template = 'https://%s/search?q={query}' % self.domain
         self.group = group if group is not None else '__world__'
         self.single_page_limit = 200 if limit is None else limit  # per-page, the api honors limit= up to (currently) 200
-        self.multi_page_limit = 200 if max_results is None else max_results  # limit for paginated results
         self.permissions = {
                 "read": ['group:' + self.group],
                 "update": ['acct:' + self.username + '@hypothes.is'],
@@ -324,21 +337,46 @@ class HypothesisUtils:
         r = requests.delete(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
-    def search_all(self, params={}):
+    def search_all(self, params={}, max_results=None, stop_at=None):
         """Call search API with pagination, return rows """
+        sort_by = params['sort'] if 'sort' in params else 'updated'
+        if stop_at:
+            dont_stop = (lambda r: r[sort_by] <= stop_at  # when ascending things less than stop are ok
+                         if 'order' in params and params['order'] == 'asc'
+                         else lambda r: r[sort_by] >= stop_at)
+        #sup_inf = max if params['order'] = 'asc' else min  # api defaults to desc
+        # trust that rows[-1] works rather than potentially messsing stuff if max/min work differently
+        nresults = 0
         while True:
             obj = self.search(params)
             rows = obj['rows']
-            row_count = len(rows)
-            if 'replies' in obj:
-                rows += obj['replies']
-            params['offset'] += row_count
-            if params['offset'] > self.multi_page_limit:
-                break
-            if len(rows) is 0:
-                break
-            for row in rows:
-                yield row
+            lr = len(rows)
+            nresults += lr
+            if lr is 0:
+                return
+
+            stop = None
+            if max_results:
+                if nresults >= max_results:
+                    stop = max_results - nresults  + lr
+                        
+            if stop_at:
+                for row in rows[:stop]:
+                    if dont_stop(row):
+                        yield row
+                    else:
+                        return
+
+            else:
+                for row in rows[:stop]:
+                    yield row
+
+            if stop:
+                return
+
+            search_after = rows[-1][sort_by]
+            params['search_after'] = search_after
+            print('searching after', search_after)
 
     def search_url(self, **params):
         return self.search_url_template.format(query=urlencode(params, True).replace('=','%3A'))  # = > :
