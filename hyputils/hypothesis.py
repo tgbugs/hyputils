@@ -105,9 +105,10 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
         self.memoization_file = memoization_file
 
     def check_group(self, annos):
-        group = annos[0].group
-        if self.group != group:
-            raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
+        if annos:
+            group = annos[0].group
+            if self.group != group:
+                raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
 
     def get_annos_from_file(self):
         annos = []
