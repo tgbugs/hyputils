@@ -36,7 +36,7 @@ class annotationSyncHandler(filterHandler):
         if memoizer is not None:
             self.memoizer = memoizer
         if not hasattr(self, 'memoizer'):
-            print(f'WARNING: no memoizer has been supplied for f{self.__class__.__name__}')
+            print(f'WARNING: no memoizer has been supplied for {self.__class__.__name__}')
 
     def handler(self, message):
         anno = None
@@ -44,8 +44,8 @@ class annotationSyncHandler(filterHandler):
             act = message['options']['action']
             if act != 'create': # update delete
                 mid = message['payload'][0]['id']
-                gone = [_ for _ in self.annos if _.id == mid][0]
-                self.annos.remove(gone)
+                for gone in [_ for _ in self.annos if _.id == mid]:
+                    self.annos.remove(gone)
                 anno = self.DeletedAnno(mid)
             if act != 'delete':  # create update
                 anno = self.HypothesisAnnotation(message['payload'][0])

@@ -5,6 +5,18 @@ from hyputils.hypothesis import api_token, username, group
 h = HypothesisUtils(username, api_token, group)
 
 
+class TestCreateAnno(unittest.TestCase):
+    def test_payload(self):
+        kwargs = dict(url='this is a url i swear',
+                  prefix='some prefix text',
+                  exact='my exact text',
+                  suffix='some suffix text',
+                  text='angry words being written about the exact text',
+                  tags='TEST:WHYHAVEYOUDONETHIS')
+        args = tuple(kwargs.values())
+        payload = h.make_annotation_payload_with_target_using_only_text_quote(*args)
+
+
 class TestHTTP(unittest.TestCase):
     anno_id = 'lCCu3LNFEeiAz7v-JjOpjQ'
     tags = ['RRID:AB_303684']

@@ -113,7 +113,7 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
                 if annos is None:
                     raise ValueError('wat')
             except FileNotFoundError:
-                print('{self.memoization_file} does not exist')
+                print('memoization file does not exist')
 
         return annos, last_sync_updated
 
