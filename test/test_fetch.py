@@ -54,3 +54,8 @@ class TestFetch(unittest.TestCase):
             raise AssertionError('should fail due to a type error from annos[-1]')
         except TypeError:
             pass
+
+    def test_world_nomax(self):
+        bad_annos = AnnoFetcher(api_token, username, '__world__')
+        annos = bad_annos.get_annos_from_api()
+        assert not annos

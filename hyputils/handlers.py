@@ -3,7 +3,6 @@
 """
 
 import os
-import yaml
 
 
 class filterHandler:
@@ -104,6 +103,7 @@ class zendeskHandler(filterHandler):
         create independently of the subscription setup here....
     """
     def __init__(self, infopath='~/files/zendeskinfo.yaml'):
+        import yaml
         from zdesk import Zendesk
         with open(os.path.expanduser(infopath), 'rt') as f:
             self.zendeskinfo = yaml.load(f)

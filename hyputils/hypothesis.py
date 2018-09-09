@@ -78,7 +78,8 @@ class AnnoFetcher:
                   'group':h.group}
         if search_after:
             params['search_after'] = search_after
-        if self.group == '__world__':
+        if max_results is None and self.group == '__world__':
+            hyp_logger.info(f'searching __world__ as {self.username} since max_results was not set')
             params['user'] = self.username
         if limit is not None:
             params['limit'] = limit
@@ -95,9 +96,18 @@ class AnnoFetcher:
 
 
 class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
+
+    class GroupMismatchError(Exception):
+        pass
+
     def __init__(self, memoization_file, api_token=api_token, username=username, group=group):
         super().__init__(api_token=api_token, username=username, group=group)
         self.memoization_file = memoization_file
+
+    def check_group(self, annos):
+        group = annos[0].group
+        if self.group != group:
+            raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
 
     def get_annos_from_file(self):
         annos = []
@@ -115,17 +125,16 @@ class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updat
             except FileNotFoundError:
                 print('memoization file does not exist')
 
+        self.check_group(annos)
         return annos, last_sync_updated
 
     def add_missing_annos(self, annos, last_sync_updated):
+        self.check_group(annos)
         search_after = last_sync_updated
         # start from last_sync_updated because we assume that the websocket is unreliable
         new_annos = self.get_annos_from_api(search_after)
         if not new_annos:
             return annos
-        ag, ang = annos[0].group, new_annos[0].group
-        if ag != ang:
-            raise ValueError(f'Groups do not match! {ag} {ang}')
         merged = annos + new_annos
         merged_unique = sorted(set(merged), key=lambda a: a.updated)
         dupes = [sorted([a for a in merged_unique if a.id == id], key=lambda a: a.updated)
@@ -360,6 +369,11 @@ class HypothesisUtils:
             dont_stop = (lambda r: r[sort_by] <= stop_at  # when ascending things less than stop are ok
                          if 'order' in params and params['order'] == 'asc'
                          else lambda r: r[sort_by] >= stop_at)
+
+        if max_results:
+            limit = 200 if 'limit' not in params else params['limit']  # FIXME hardcoded
+            if max_results < limit:
+                params['limit'] = max_results
 
         #sup_inf = max if params['order'] = 'asc' else min  # api defaults to desc
         # trust that rows[-1] works rather than potentially messsing stuff if max/min work differently

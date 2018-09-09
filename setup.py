@@ -21,7 +21,7 @@ setup(name='hyputils',
           'robobrowser',
           'websockets',
       ],
-      extras_require={'dev':['zdesk']},
+      extras_require={'dev':['yaml', 'zdesk']},
       entry_points={
           'console_scripts': [
           ],
