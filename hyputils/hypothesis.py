@@ -581,6 +581,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             # FIXME extremely inefficient on update
             # and we want this to update as replies appear
             # not all at once...
+            # FIXME this does not update if new annos are added on the fly!
             for obj in cls.objects.values():
                 for tag in obj.tags:
                     if tag not in cls._tagIndex:
