@@ -1,9 +1,7 @@
-import os
-import shutil
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(name='hyputils',
-      version='0.0.1',
+      version='0.0.2',
       description='Python utilities for the Hypothes.is REST api and websocket interface',
       long_description=' ',
       url='https://github.com/tgbugs/hyputils',
@@ -15,7 +13,6 @@ setup(name='hyputils',
       packages=['hyputils'],
       python_requires='>=3.6',
       install_requires=[
-          'beautifulsoup4',
           'certifi',
           'requests',
           'robobrowser',

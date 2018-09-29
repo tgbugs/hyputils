@@ -10,6 +10,7 @@ except:
     def nottest(function):
         return function
 
+# TODO use our own little websocket server to send annos as if they came from hypothesis
 
 class FakeMem:
     def memoize_annos(self, annos):

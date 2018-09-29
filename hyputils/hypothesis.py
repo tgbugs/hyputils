@@ -95,7 +95,7 @@ class AnnoFetcher:
                                     stop_at=stop_at)]
 
 
-class Memoizer(AnnoFetcher):  # TODO the 'idea' solution to this is a self-updating list that listenes on the websocket and uses this transparently behind the scenes... yes there will be synchronization issues...
+class Memoizer(AnnoFetcher):  # TODO just use a database ...
 
     class GroupMismatchError(Exception):
         pass
@@ -298,9 +298,9 @@ class HypothesisUtils:
         else:
             target = [{
                 "scope": [url],
-                "selector": 
+                "selector":
                 [{
-                    "type": "TextQuoteSelector", 
+                    "type": "TextQuoteSelector",
                     "prefix": prefix,
                     "exact": exact,
                     "suffix": suffix
@@ -315,13 +315,13 @@ class HypothesisUtils:
             "user": 'acct:' + self.username + '@hypothes.is',
             "permissions": self.permissions,
             "group": self.group,
-            "target": target, 
+            "target": target,
             "tags": tags,
             "text": text
         }
         return payload
 
-    def create_annotation_with_target_using_only_text_quote(self, url=None, prefix=None, 
+    def create_annotation_with_target_using_only_text_quote(self, url=None, prefix=None,
                exact=None, suffix=None, text=None, tags=None, tag_prefix=None):
         """Call API with token and payload, create annotation (using only text quote)"""
         payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact, suffix, text, tags)
@@ -391,7 +391,7 @@ class HypothesisUtils:
             if max_results:
                 if nresults >= max_results:
                     stop = max_results - nresults  + lr
-                        
+
             if stop_at:
                 for row in rows[:stop]:
                     if dont_stop(row):
