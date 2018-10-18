@@ -26,9 +26,6 @@ api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
 username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
 
-if 'CI' not in environ:
-    print(api_token, username, group)  # sanity check
-
 
 def makeSimpleLogger(name):
     # TODO use extra ...
@@ -42,6 +39,9 @@ def makeSimpleLogger(name):
 
 
 hyp_logger = makeSimpleLogger('hyputils.hypothesis')
+
+if 'CI' not in environ:
+    hyp_logger.debug(' '.join((api_token, username, group)))  # sanity check
 
 # annotation retrieval and memoization
 
@@ -486,7 +486,11 @@ class HypothesisAnnotation:
 
         self.is_page_note = False
         try:
-            if self.references == [] and self.target is not None and len(self.target) and isinstance(self.target,list) and 'selector' not in self.target[0]:
+            if (self.references == [] and
+                self.target is not None and
+                len(self.target) and
+                isinstance(self.target,list) and
+                'selector' not in self.target[0]):
                 self.is_page_note = True
                 self.type = 'pagenote'
         except BaseException as e:
