@@ -22,6 +22,15 @@ class filterHandler:
             self.handler(message)
 
 
+class dbSyncHandler(filterHandler):
+    def __init__(self, *helpers):
+        self.helpers = helpers
+
+    def handler(self, message):
+        for helper in self.helpers:
+            helper(message)
+
+
 class annotationSyncHandler(filterHandler):
     class DeletedAnno:
         deleted = True
