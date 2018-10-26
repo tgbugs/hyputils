@@ -595,6 +595,12 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
         return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
 
+    @classmethod
+    def byIri(cls, iri):
+        for obj in cls.objects.values():
+            if obj.uri == iri:
+                yield obj
+
     def __new__(cls, anno, annos):
         if not hasattr(cls, '_annos_list'):
             cls._annos_list = annos
@@ -682,6 +688,8 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     def tags(self): return self._tags
     @property
     def updated(self): return self._updated
+    @property
+    def uri(self): return self._anno.uri
 
     def getAnnoById(self, id_):
         try:
