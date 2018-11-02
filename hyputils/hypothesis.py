@@ -580,20 +580,23 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
     @classmethod
     def byTags(cls, *tags):
-        if not cls._tagIndex:
-            printD('populating tags')
-            # FIXME extremely inefficient on update
-            # and we want this to update as replies appear
-            # not all at once...
-            # FIXME this does not update if new annos are added on the fly!
-            for obj in cls.objects.values():
-                for tag in obj.tags:
-                    if tag not in cls._tagIndex:
-                        cls._tagIndex[tag] = {obj}
-                    else:
-                        cls._tagIndex[tag].add(obj)
+        if cls._done_loading:  # TODO maybe better than done loading is 'consistent'?
+            if not cls._tagIndex:
+                printD('populating tags')
+                # FIXME extremely inefficient on update
+                # and we want this to update as replies appear
+                # not all at once...
+                # FIXME this does not update if new annos are added on the fly!
+                for obj in cls.objects.values():
+                    for tag in obj.tags:
+                        if tag not in cls._tagIndex:
+                            cls._tagIndex[tag] = {obj}
+                        else:
+                            cls._tagIndex[tag].add(obj)
 
-        return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
+            return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
+        else:
+            hyp_logger.warning('attempted to search by tags before done loading')
 
     @classmethod
     def byIri(cls, iri):
