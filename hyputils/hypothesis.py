@@ -53,6 +53,7 @@ class NotOkError(Exception):
 
 
 class AnnoFetcher:
+    lsu_default = '1900-01-01T00:00:00.000000+00:00'  # don't need, None is ok
     def __init__(self, api_token=api_token, username=username, group=group):
         if api_token == 'TOKEN':
             print('\x1b[31mWARNING:\x1b[0m NO API TOKEN HAS BEEN SET!')
@@ -169,7 +170,8 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
                 do_chmod = True
 
             with open(self.memoization_file, 'wb') as f:
-                alsu = annos, annos[-1].updated
+                lsu = annos[-1].updated if annos else None
+                alsu = annos, lsu
                 pickle.dump(alsu, f)
 
             if do_chmod:
