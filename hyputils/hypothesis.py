@@ -43,6 +43,18 @@ hyp_logger = makeSimpleLogger('hyputils.hypothesis')
 if 'CI' not in environ:
     hyp_logger.debug(' '.join((api_token, username, group)))  # sanity check
 
+# simple uri normalization
+
+def norm(iri):
+    if '://' in iri:
+        _scheme, iri_norm = iri.split('://', 1)
+        if '?hypothesisAnnotationId=' in iri:
+            iri_norm, junk = iri.split('?hypothesisAnnotationId=', 1)
+    else:
+        iri_norm = iri  # the creeping madness has co
+
+    return iri_norm
+
 # annotation retrieval and memoization
 
 class NotOkError(Exception):
@@ -625,18 +637,9 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
     @classmethod
     def byIri(cls, iri):
-        def norm(iri):
-            if '://' in iri:
-                _scheme, iri_norm = iri.split('://', 1)
-                if '?hypothesisAnnotationId=' in iri:
-                    iri_norm, junk = iri.split('?hypothesisAnnotationId=', 1)
-            else:
-                iri_norm = iri  # the creeping madness has co
-
-            return iri_norm
-
+        norm_iri = norm(iri)
         for obj in cls.objects.values():
-            if norm(obj.uri) == norm(iri):
+            if norm(obj.uri) == norm_iri:
                 yield obj
 
     def __new__(cls, anno, annos):
