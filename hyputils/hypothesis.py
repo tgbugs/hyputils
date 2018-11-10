@@ -6,7 +6,7 @@ import json
 import pickle
 import logging
 import requests
-from collections import Counter
+from collections import Counter, defaultdict
 
 try:
     from urllib.parse import urlencode
@@ -549,7 +549,30 @@ class HypothesisAnnotation:
 
 class iterclass(type):
     def __iter__(self):
-        yield from sorted(self.objects.values())
+        yield from self.objects.values()  # don't sort unless required
+
+    @property
+    def uri_tags(self):
+        """ a dictionary all (processed) tags for a given uri """
+        if not hasattr(self, '_uri_tags'):
+            uri_tags = defaultdict(set)
+            for obj in self.objects.values():  # do not use self here because the
+                # sorting in __iter__ above can be extremely slow
+                uri_tags[obj.uri].update(obj._tags)
+
+            self._uri_tags = dict(uri_tags)  # FIXME this will go stale
+
+        return self._uri_tags
+
+    @property
+    def uris(self):
+        """ uris that have been annotated with tags from this workflow """
+        if hasattr(self, 'namespace'):
+            return set(uri for uri, tags in self.uri_tags.items()
+                       if any(tag.startswith(self.prefix_ast)
+                              for tag in tags))
+        else:
+            return set(self.uri_tags)
 
 
 # HypothesisHelper class customized to deal with replacing
@@ -602,8 +625,18 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
     @classmethod
     def byIri(cls, iri):
+        def norm(iri):
+            if '://' in iri:
+                _scheme, iri_norm = iri.split('://', 1)
+                if '?hypothesisAnnotationId=' in iri:
+                    iri_norm, junk = iri.split('?hypothesisAnnotationId=', 1)
+            else:
+                iri_norm = iri  # the creeping madness has co
+
+            return iri_norm
+
         for obj in cls.objects.values():
-            if obj.uri == iri:
+            if norm(obj.uri) == norm(iri):
                 yield obj
 
     def __new__(cls, anno, annos):
@@ -632,7 +665,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 print(f'WARNING it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
         try:
             self = cls.objects[anno.id]
-            if self._text == anno.text and self._tags == anno.tags:
+            if self._updated == anno.updated:
                 #printD(f'{self.id} already exists')
                 return self
             else:
@@ -640,6 +673,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 cls._annos[anno.id] = anno  # update to the new anno version
                 self.__init__(anno, annos)  # just updated the underlying refs no worries
                 return self
+
         except KeyError:
             #printD(f'{anno.id} doesnt exist')
             return super().__new__(cls)
@@ -649,6 +683,12 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         self.annos = annos
         self.id = anno.id  # hardset this to prevent shenanigans
         self.objects[self.id] = self
+
+        if hasattr(self, '_uri_tags'):  # keep uri_tags in sync
+            if anno.uri not in self._uri_tags:
+                self._uri_tags[self.uri] = set()
+
+            self._uri_tags[self.uri].update(self._tags)  # use _tags since tags can make many calls
 
         #if self.objects[self.id] is None:
             #printD('WAT', self.id)
