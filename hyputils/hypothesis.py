@@ -152,8 +152,8 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         merged = annos + new_annos
         merged_unique = sorted(set(merged), key=lambda a: a.updated)
         dupes = [sorted([a for a in merged_unique if a.id == id], key=lambda a: a.updated)
-                for id, count in Counter(anno.id for anno in merged_unique).most_common()
-                if count > 1]
+                 for id, count in Counter(anno.id for anno in merged_unique).most_common()
+                 if count > 1]
 
         will_stay = [dupe[-1] for dupe in dupes]
         to_remove = [a for dupe in dupes for a in dupe[:-1]]
@@ -172,6 +172,22 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
             self.memoize_annos(merged_unique)
 
         return merged_unique
+
+    def update_annos_from_api(self, annos, helpers=tuple()):
+        """ Assumes these are ordered by updated """
+        # FIXME why aren't we just getting the group from the annos??
+        self.check_group(annos)
+        last_sync_updated = annos[-1].updated
+        search_after = last_sync_updated
+        # start from last_sync_updated because we assume that the websocket is unreliable
+        new_annos = self.get_annos_from_api(search_after)
+        if new_annos:
+            annos.extend(new_annos)
+            # TODO deal with updates
+            self.memoize_annos(annos)
+            for anno in new_annos:
+                for Helper in helpers:
+                    Helper(anno, annos)
 
     def memoize_annos(self, annos):
         # FIXME if there are multiple ws listeners we will have race conditions?
@@ -242,6 +258,7 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
             elif resp.request.method == 'DELETE':
                 id = resp.json()['id']
                 self.del_anno(id, annos)
+
 
 #
 # url helpers
