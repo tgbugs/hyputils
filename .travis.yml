@@ -17,7 +17,7 @@ python:
 install:
   - pip install pipenv
   - pip install coverage coveralls nose-timer && export HAS_COVERALLS=1
-  - pipenv install --system --skip-lock
+  - pipenv install --system --skip-lock --deploy --verbose
 
 script:
   - PYTHONWARNINGS=default pipenv run nosetests --with-coverage --cover-tests --cover-package=hyputils
