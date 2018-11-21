@@ -162,11 +162,14 @@ def setup_websocket(api_token, filters, filter_handlers,
     rsock, wsock = socketpair()
 
     def exit_loop():
-        # stop the current await
-        wsock.send(b'Parent processes sent exit\n')
-        # close the socket and make sure we don't start again
-        # or more simply, to avoid leaking resources
-        wsock.close()
+        try:
+            # stop the current await
+            wsock.send(b'Parent processes sent exit\n')
+            # close the socket and make sure we don't start again
+            # or more simply, to avoid leaking resources
+            wsock.close()
+        except OSError:
+            pass  # socket was already closed
 
     async def ws_loop(loop):
         #websocket_endpoint = 'wss://hypothes.is/ws'
