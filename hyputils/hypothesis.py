@@ -182,6 +182,11 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         # start from last_sync_updated because we assume that the websocket is unreliable
         new_annos = self.get_annos_from_api(search_after)
         if new_annos:
+            new_ids = set(a.id for a in new_annos)
+            for anno in tuple(annos):  # FIXME memory and perf issues?
+                if anno.id in new_ids:
+                    annos.remove(anno)
+
             annos.extend(new_annos)
             # TODO deal with updates
             self.memoize_annos(annos)
