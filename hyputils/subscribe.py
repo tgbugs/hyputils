@@ -34,7 +34,7 @@ class preFilter:
     """
     def __init__(self, groups=[], users=[], uris=[], tags=[],
                  create=True, update=True, delete=True,
-                 match_policy='include_all'):
+                 match_policy='include_any'):
 
         self.create = create
         self.update = update
@@ -50,7 +50,7 @@ class preFilter:
 
         self.clause_map = [
             ('/group', self.groups),  # __world__
-            ('/users', self.users),
+            ('/user', self.users),
             ('/uri', self.uris),
             ('/tags', self.tags),
         ]
@@ -60,7 +60,7 @@ class preFilter:
         for field, value in self.clause_map:
             if value:
                 clauses.append(
-                    {'field':[field],
+                    {'field':field,
                      'case_sensitive':True,
                      'operator':'one_of',
                      'options':{},
@@ -102,7 +102,7 @@ async def setup_connection(websocket):
 
 
 async def setup_filters(websocket, filters):
-    print('SETUP FILTERS', filters)
+    print('SETUP FILTERS\n', json.dumps(filters, indent=2))
     await websocket.send(json.dumps(filters))
 
 
