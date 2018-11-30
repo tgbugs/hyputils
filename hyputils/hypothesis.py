@@ -608,6 +608,10 @@ class iterclass(type):
         else:
             return set(self.uri_tags)
 
+    @property
+    def orphans(self):
+        for id in self._orphanedReplies:
+            yield self.byId(id)
 
 # HypothesisHelper class customized to deal with replacing
 #  exact, text, and tags based on its replies
@@ -625,6 +629,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     _embedded = False
     _done_loading = False
     _annos = {}
+    _orphanedReplies = set()
 
     @classmethod
     def addAnno(cls, anno):
@@ -770,9 +775,10 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     @property
     def uri(self): return self._anno.uri
 
-    def getAnnoById(self, id_):
+    @classmethod
+    def getAnnoById(cls, id_):
         try:
-            return self._annos[id_]
+            return cls._annos[id_]
         except KeyError as e:
             #print('could not find', id_, shareLinkFromId(id_))
             return None
@@ -787,7 +793,8 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 #print('Problem in', self.shareLink)  # must come after self.objects[id_] = None else RecursionError
                 if not self._recursion_blocker:
                     if self._type == 'reply':
-                        print('Orphaned reply', self.shareLink, f"{self.classn}.byId('{self.id}')")
+                        #print('Orphaned reply', self.shareLink, f"{self.classn}.byId('{self.id}')")
+                        self._orphanedReplies.add(self.id)
                     else:
                         print('Problem in', self.shareLink, f"{self.classn}.byId('{self.id}')")
                 return None
