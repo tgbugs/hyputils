@@ -646,16 +646,19 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 # and we want this to update as replies appear
                 # not all at once...
                 # FIXME this does not update if new annos are added on the fly!
-                for obj in cls.objects.values():
-                    for tag in obj.tags:
-                        if tag not in cls._tagIndex:
-                            cls._tagIndex[tag] = {obj}
-                        else:
-                            cls._tagIndex[tag].add(obj)
+                [obj.populateTags() for obj in cls.objects.values()]
 
             return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
         else:
             hyp_logger.warning('attempted to search by tags before done loading')
+
+    def populateTags(self):
+        # FIXME need a way to evict old annos on update
+        for tag in self.tags:
+            if tag not in self._tagIndex:
+                self._tagIndex[tag] = {self}
+            else:
+                self._tagIndex[tag].add(self)
 
     @classmethod
     def byIri(cls, iri):
@@ -708,6 +711,12 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         self.annos = annos
         self.id = anno.id  # hardset this to prevent shenanigans
         self.objects[self.id] = self
+
+        if self._tagIndex:
+            # if tagIndex is not empty and we make it to __init__
+            # then this anno helper has not been put into the tag index
+            # FIXME stale annos in the tag index are likely an issue
+            self.populateTags()
 
         if hasattr(self, '_uri_tags'):  # keep uri_tags in sync
             if anno.uri not in self._uri_tags:
