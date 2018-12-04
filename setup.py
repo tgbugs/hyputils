@@ -1,9 +1,13 @@
 from setuptools import setup
 
+with open('README.md', 'rt') as f:
+    long_description = f.read()
+
 setup(name='hyputils',
       version='0.0.2',
       description='Python utilities for the Hypothes.is REST api and websocket interface',
-      long_description=' ',
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       url='https://github.com/tgbugs/hyputils',
       author='Tom Gillespie',
       author_email='tgbugs@gmail.com',

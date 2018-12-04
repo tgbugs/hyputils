@@ -4,6 +4,7 @@ import os
 from os import environ, chmod
 import json
 import pickle
+import hashlib
 import logging
 import requests
 from collections import Counter, defaultdict
@@ -25,6 +26,16 @@ except ImportError:
 api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
 username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
+UID = os.getuid()
+
+
+def group_to_memfile(group, post=lambda group_hash:None):
+    m = hashlib.sha256()
+    m.update(group.encode())
+    group_hash = m.hexdigest()
+    memfile = f'/tmp/annos-{UID}-{group_hash}.pickle'
+    post(group_hash)
+    return memfile
 
 
 def makeSimpleLogger(name):
@@ -113,8 +124,13 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
     class GroupMismatchError(Exception):
         pass
 
-    def __init__(self, memoization_file, api_token=api_token, username=username, group=group):
+    def __init__(self, memoization_file=None, api_token=api_token, username=username, group=group):
         super().__init__(api_token=api_token, username=username, group=group)
+        if memoization_file is None:
+            if group == '__world__':
+                memoization_file = f'/tmp/annos-{UID}-__world__-{username}.pickle'
+            else:
+                memoization_file = group_to_memfile(group)
         self.memoization_file = memoization_file
 
     def check_group(self, annos):
