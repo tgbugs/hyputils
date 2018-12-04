@@ -681,6 +681,18 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             else:
                 self._tagIndex[tag].add(self)
 
+            tset = self._tagIndex[tag]
+            if tset not in self._remove_self_from:
+                self._remove_self_from.append((tag, tset))
+
+    def depopulateTags(self):
+        """ remove object from the tag index on delete """
+        hyp_logger.debug(f'Removing {self._repr} from {len(self._remove_self_from)} tag sets')
+        for tag, tset in self._remove_self_from:
+            tset.remove(self)  # this should never error if everything is working correctly
+            if not tset:  # remove unused tags from the index in depopulate
+                self._tagIndex.pop(tag)
+
     @classmethod
     def byIri(cls, iri):
         norm_iri = norm(iri)
@@ -698,12 +710,17 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             annos = cls._annos_list
 
         if hasattr(anno, 'deleted'):
+            matches = [a for a in annos if a.id == anno.id]  # FIXME ick get rid of the list!
+            for m in matches:
+                cls._annos_list.remove(m)
+
             if anno.id in cls._annos:  # it is set to True by convetion
                 cls._annos.pop(anno.id)  # insurance
             #else:
                 #print("It's ok we already deleted", anno.id)
             if anno.id in cls.objects:
-                cls.objects.pop(anno.id)  # this is what we were missing
+                obj = cls.objects.pop(anno.id)  # this is what we were missing
+                obj.depopulateTags()
                 #print('Found the sneek.', anno.id)
             return  # our job here is done
 
@@ -732,6 +749,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         self.annos = annos
         self.id = anno.id  # hardset this to prevent shenanigans
         self.objects[self.id] = self
+        self._remove_self_from = []
 
         if self._tagIndex:
             # if tagIndex is not empty and we make it to __init__
