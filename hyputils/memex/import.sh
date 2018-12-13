@@ -21,8 +21,12 @@ cpfile models/document.py
 cpfile models/group.py
 cpfile models/organization.py
 cpfile models/user.py
+cpfile models/user_identity.py
 
+cpfile schemas/__init__.py
 cpfile schemas/annotation.py
+cpfile schemas/base.py
 
+cpfile util/__init__.py
 cpfile util/uri.py
 cpfile util/user.py
