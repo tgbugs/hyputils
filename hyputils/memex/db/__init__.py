@@ -17,8 +17,6 @@ from __future__ import unicode_literals
 import logging
 
 import sqlalchemy
-import zope.sqlalchemy
-import zope.sqlalchemy.datamanager
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import exc
 from sqlalchemy.orm import sessionmaker
@@ -73,51 +71,12 @@ def make_engine(settings):
     return sqlalchemy.create_engine(settings["sqlalchemy.url"])
 
 
-def _session(request):
-    engine = request.registry["sqlalchemy.engine"]
-    session = Session(bind=engine)
-
-    # If the request has a transaction manager, associate the session with it.
-    try:
-        tm = request.tm
-    except AttributeError:
-        pass
-    else:
-        zope.sqlalchemy.register(session, transaction_manager=tm)
-
-    # Track uncommitted changes so we can verify that everything was either
-    # committed or rolled back when the request finishes.
-    db_session_checks = request.registry.settings.get("h.db_session_checks", True)
-    if db_session_checks:
-        tracker = Tracker(session)
-    else:
-        tracker = None
-
-    # pyramid_tm doesn't always close the database session for us.
-    #
-    # For example if an exception view accesses the session and causes a new
-    # transaction to be opened, pyramid_tm won't close this connection because
-    # pyramid_tm's transaction has already ended before exception views are
-    # executed.
-    # Connections opened by NewResponse and finished callbacks aren't closed by
-    # pyramid_tm either.
-    #
-    # So add our own callback here to make sure db sessions are always closed.
-    #
-    # See: https://github.com/Pylons/pyramid_tm/issues/40
-    @request.add_finished_callback
-    def close_the_sqlalchemy_session(request):
-        changes = tracker.uncommitted_changes() if tracker else []
-        if changes:
-            msg = "closing a session with uncommitted changes %s"
-            log.warning(msg, changes, extra={"stack": True, "changes": changes})
-        session.close()
-
-    return session
-
-
-def _maybe_create_default_organization(engine, authority):
+def _maybe_create_default_organization(engine, authority, logopath=None):
     from h import models
+    if logopath is None:
+        from os.path import dirname
+        workingdir = dirname(dirname(dirname(__file__)))
+        logopath = workingdir + '/' + 'h/static/images/icons/logo.svg'
 
     session = Session(bind=engine)
 
@@ -130,7 +89,7 @@ def _maybe_create_default_organization(engine, authority):
         default_org = models.Organization(
             name="Hypothesis", authority=authority, pubid="__default__"
         )
-        with open("h/static/images/icons/logo.svg", "rb") as h_logo:
+        with open(logopath, 'rb') as h_logo:
             default_org.logo = h_logo.read().decode("utf-8")
         session.add(default_org)
 
@@ -160,14 +119,3 @@ def _maybe_create_world_group(engine, authority, default_org):
 
     session.commit()
     session.close()
-
-
-def includeme(config):
-    # Create the SQLAlchemy engine and save a reference in the app registry.
-    engine = make_engine(config.registry.settings)
-    config.registry["sqlalchemy.engine"] = engine
-
-    # Add a property to all requests for easy access to the session. This means
-    # that view functions need only refer to `request.db` in order to retrieve
-    # the current database session.
-    config.add_request_method(_session, name="db", reify=True)
