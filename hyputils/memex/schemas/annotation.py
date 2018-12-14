@@ -90,12 +90,13 @@ class CreateAnnotationSchema(object):
         self.structure = AnnotationSchema()
         self.request = request
 
-    def validate(self, data):
+    def validate(self, data, remove_protected=True):
         appstruct = self.structure.validate(data)
 
         new_appstruct = {}
 
-        _remove_protected_fields(appstruct)
+        if remove_protected:
+            _remove_protected_fields(appstruct)
 
         new_appstruct["userid"] = self.request.authenticated_userid
 
@@ -146,12 +147,13 @@ class UpdateAnnotationSchema(object):
         self.groupid = groupid
         self.structure = AnnotationSchema()
 
-    def validate(self, data):
+    def validate(self, data, remove_protected=True):
         appstruct = self.structure.validate(data)
 
         new_appstruct = {}
 
-        _remove_protected_fields(appstruct)
+        if remove_protected:
+            _remove_protected_fields(appstruct)
 
         # Some fields are not allowed to be changed in annotation updates.
         for key in ["group", "groupid", "userid", "references"]:
