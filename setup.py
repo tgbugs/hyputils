@@ -25,7 +25,7 @@ setup(name='hyputils',
           'slugify',
           'webob',
       ],
-      extras_require={'dev':['mock', 'pytest', 'yaml', 'zdesk']},
+      extras_require={'dev':['factory-boy', 'mock', 'pytest', 'yaml', 'zdesk']},
       entry_points={
           'console_scripts': [
           ],
