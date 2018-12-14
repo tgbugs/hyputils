@@ -763,27 +763,27 @@ class TestDocumentURIsFromData(object):
 
     @pytest.fixture
     def document_uris_from_dc(self, patch):
-        return patch("h.util.document_claims.document_uris_from_dc", return_value=[])
+        return patch("hyputils.memex.util.document_claims.document_uris_from_dc", return_value=[])
 
     @pytest.fixture
     def document_uris_from_highwire_pdf(self, patch):
         return patch(
-            "h.util.document_claims.document_uris_from_highwire_pdf", return_value=[]
+            "hyputils.memex.util.document_claims.document_uris_from_highwire_pdf", return_value=[]
         )
 
     @pytest.fixture
     def document_uris_from_highwire_doi(self, patch):
         return patch(
-            "h.util.document_claims.document_uris_from_highwire_doi", return_value=[]
+            "hyputils.memex.util.document_claims.document_uris_from_highwire_doi", return_value=[]
         )
 
     @pytest.fixture
     def document_uris_from_links(self, patch):
-        return patch("h.util.document_claims.document_uris_from_links", return_value=[])
+        return patch("hyputils.memex.util.document_claims.document_uris_from_links", return_value=[])
 
     @pytest.fixture
     def document_uri_self_claim(self, patch):
-        return patch("h.util.document_claims.document_uri_self_claim")
+        return patch("hyputils.memex.util.document_claims.document_uri_self_claim")
 
 
 def one(list_):

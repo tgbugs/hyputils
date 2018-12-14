@@ -1046,21 +1046,21 @@ class TestUpdateDocumentMetadata(object):
 
     @pytest.fixture
     def create_or_update_document_meta(self, patch):
-        return patch("h.models.document.create_or_update_document_meta")
+        return patch("hyputils.memex.models.document.create_or_update_document_meta")
 
     @pytest.fixture
     def create_or_update_document_uri(self, patch):
-        return patch("h.models.document.create_or_update_document_uri")
+        return patch("hyputils.memex.models.document.create_or_update_document_uri")
 
     @pytest.fixture
     def Document(self, patch):
-        Document = patch("h.models.document.Document")
+        Document = patch("hyputils.memex.models.document.Document")
         Document.find_or_create_by_uris.return_value.count.return_value = 1
         return Document
 
     @pytest.fixture
     def merge_documents(self, patch):
-        return patch("h.models.document.merge_documents")
+        return patch("hyputils.memex.models.document.merge_documents")
 
     @pytest.fixture
     def session(self, db_session):
@@ -1117,4 +1117,4 @@ def mock_document_meta(document=None):
 
 @pytest.fixture
 def log(patch):
-    return patch("h.models.document.log")
+    return patch("hyputils.memex.models.document.log")

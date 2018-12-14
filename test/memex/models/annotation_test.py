@@ -202,4 +202,4 @@ class TestThread(object):
 
 @pytest.fixture
 def markdown(patch):
-    return patch("h.models.annotation.markdown")
+    return patch("hyputils.memex.models.annotation.markdown")

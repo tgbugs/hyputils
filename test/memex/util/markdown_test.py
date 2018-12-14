@@ -26,11 +26,11 @@ class TestRender(object):
 
     @pytest.fixture
     def markdown_render(self, patch):
-        return patch("h.util.markdown.markdown")
+        return patch("hyputils.memex.util.markdown.markdown")
 
     @pytest.fixture
     def sanitize(self, patch):
-        return patch("h.util.markdown.sanitize")
+        return patch("hyputils.memex.util.markdown.sanitize")
 
 
 class TestSanitize(object):

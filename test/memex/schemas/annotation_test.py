@@ -579,4 +579,4 @@ class TestUpdateAnnotationSchema(object):
 
 @pytest.fixture
 def document_claims(patch):
-    return patch("h.schemas.annotation.document_claims")
+    return patch("hyputils.memex.schemas.annotation.document_claims")
