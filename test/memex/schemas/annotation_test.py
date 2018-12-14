@@ -391,13 +391,15 @@ class TestCreateAnnotationSchema(object):
 
         assert str(exc.value) == "uri: 'uri' is a required property"
 
-    def test_it_sets_userid(self, pyramid_config, pyramid_request):
-        pyramid_config.testing_securitypolicy("acct:harriet@example.com")
+    def test_it_sets_userid(self, pyramid_request):
+        #pyramid_config.testing_securitypolicy("acct:harriet@example.com")
+        pyramid_request.authenticated_userid = "acct:harriet@example.com"  # this is not actually part of the schema ...
         schema = CreateAnnotationSchema(pyramid_request)
 
         appstruct = schema.validate(self.valid_data())
 
         assert appstruct["userid"] == "acct:harriet@example.com"
+        assert False, 'FIXME TODO'
 
     def test_it_inserts_empty_string_if_data_contains_no_text(self, pyramid_request):
         schema = CreateAnnotationSchema(pyramid_request)
