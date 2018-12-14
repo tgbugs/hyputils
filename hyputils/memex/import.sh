@@ -51,7 +51,8 @@ cpfile util/user.py
 
 # tests
 
-cptest db/*
+cptest db/__init__.py
+cptest db/types_test.py
 
 cptest models/annotation_test.py
 cptest models/document_test.py
