@@ -83,20 +83,6 @@ class Group(Base, mixins.Timestamps):
 
     description = sa.Column(sa.UnicodeText())
 
-    #: Enforce scope match for annotations in this group.
-    #: For groups with 1-n scopes, only allow annotations for target
-    #: documents whose URIs match one of the group's scopes.
-    #: When disabled, annotations should be allowed web-wide.
-    #: This setting has no effect if the group does not have any scopes.
-    #: Enforcement is the responsibility of services (i.e. the model
-    #: layer does not enforce scope compliance).
-    enforce_scope = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=True,
-        server_default=sa.sql.expression.true(),
-    )
-
     #: Allow authorities to define their own unique identifier for a group
     #: (versus the pubid). This identifier is owned by the authority/client
     #: versus ``pubid``, which is owned and controlled by the service.
@@ -152,10 +138,6 @@ class Group(Base, mixins.Timestamps):
         "User",
         secondary="user_group",
         backref=sa.orm.backref("groups", order_by="Group.name"),
-    )
-
-    scopes = sa.orm.relationship(
-        "GroupScope", backref="group", cascade="all, delete-orphan"
     )
 
     organization_id = sa.Column(
