@@ -140,10 +140,6 @@ class User(Base):
                 cls.authority,
                 unique=True,
             ),
-            # Optimize lookup of shadowbanned users.
-            sa.Index(
-                "ix__user__nipsa", cls.nipsa, postgresql_where=cls.nipsa.is_(True)
-            ),
         )
 
     id = sa.Column(sa.Integer, autoincrement=True, primary_key=True)
@@ -171,40 +167,6 @@ class User(Base):
 
     #: The user's ORCID ID
     orcid = sa.Column(sa.UnicodeText())
-
-    #: Is this user an admin member?
-    admin = sa.Column(
-        sa.Boolean,
-        default=False,
-        nullable=False,
-        server_default=sa.sql.expression.false(),
-    )
-
-    #: Is this user a staff member?
-    staff = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=False,
-        server_default=sa.sql.expression.false(),
-    )
-
-    #: Is this user flagged as "Not (Suitable) In Public Site Areas" (AKA
-    #: NIPSA). This flag is used to shadow-ban a user so their annotations
-    #: don't appear to anyone but themselves.
-    nipsa = sa.Column(
-        sa.Boolean,
-        nullable=False,
-        default=False,
-        server_default=sa.sql.expression.false(),
-    )
-
-    sidebar_tutorial_dismissed = sa.Column(
-        sa.Boolean, default=False, server_default=(sa.sql.expression.false())
-    )
-
-    #: A timestamp representing the last time the user accepted the privacy policy.
-    #: A NULL value in this column indicates the user has never accepted a privacy policy.
-    privacy_accepted = sa.Column(sa.DateTime, nullable=True)
 
     identities = sa.orm.relationship(
         "UserIdentity", backref="user", cascade="all, delete-orphan"
@@ -246,36 +208,6 @@ class User(Base):
         server_default=sa.func.now(),
         nullable=False,
     )
-
-    # Activation foreign key
-    activation_id = sa.Column(sa.Integer, sa.ForeignKey("activation.id"))
-    activation = sa.orm.relationship("Activation", backref="user")
-
-    @property
-    def is_activated(self):
-        if self.activation_id is None:
-            return True
-
-        return False
-
-    def activate(self):
-        """Activate the user by deleting any activation they have."""
-        session = sa.orm.object_session(self)
-        session.delete(self.activation)
-
-    #: Hashed password
-    password = sa.Column(sa.UnicodeText(), nullable=True)
-    #: Last password update
-    password_updated = sa.Column(sa.DateTime(), nullable=True)
-
-    #: Password salt
-    #:
-    #: N.B. This field is DEPRECATED. The password context we use already
-    #: manages the generation of a random salt when hashing a password and we
-    #: don't need a separate salt column. This remains for "legacy" passwords
-    #: which were, sadly, double-salted. As users log in, we are slowly
-    #: upgrading their passwords and setting this column to None.
-    salt = sa.Column(sa.UnicodeText(), nullable=True)
 
     @sa.orm.validates("email")
     def validate_email(self, key, email):
@@ -319,13 +251,6 @@ class User(Base):
             )
             .first()
         )
-
-    @classmethod
-    def get_by_activation(cls, session, activation):
-        """Fetch a user by activation instance."""
-        user = session.query(cls).filter(cls.activation_id == activation.id).first()
-
-        return user
 
     @classmethod
     def get_by_username(cls, session, username, authority):
