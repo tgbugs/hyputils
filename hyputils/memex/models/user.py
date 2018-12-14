@@ -7,11 +7,11 @@ import re
 import sqlalchemy as sa
 from sqlalchemy.ext.hybrid import Comparator, hybrid_property
 from sqlalchemy.ext.declarative import declared_attr
-from pyramid import security
 
 from h._compat import string_types
 from h.db import Base
 from h.util.user import split_user
+from hyputils.memex.security import security
 
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 30

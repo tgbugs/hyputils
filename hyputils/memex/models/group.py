@@ -12,6 +12,7 @@ from h.db import Base
 from h.db import mixins
 from h import pubid
 from h.util.group import split_groupid
+from hyputils.memex.security import security
 
 
 GROUP_NAME_MIN_LENGTH = 3
@@ -19,26 +20,6 @@ GROUP_NAME_MAX_LENGTH = 25
 GROUP_DESCRIPTION_MAX_LENGTH = 250
 AUTHORITY_PROVIDED_ID_PATTERN = r"^[a-zA-Z0-9._\-+!~*()']+$"
 AUTHORITY_PROVIDED_ID_MAX_LENGTH = 1024
-
-
-class AllPermissionsList(object):
-    """ Stand in 'permission list' to represent all permissions """
-    def __iter__(self):
-        return ()
-    def __contains__(self, other):
-        return True
-    def __eq__(self, other):
-        return isinstance(other, self.__class__)
-
-
-ALL_PERMISSIONS = AllPermissionsList()
-
-
-class security:
-    """ local version of pyramid security object """
-    Allow = 'Allow'
-    Everyone = 'system.Everyone'
-    DENY_ALL = ('Deny', 'system.Everyone', AllPermissionsList())
 
 
 class JoinableBy(enum.Enum):
