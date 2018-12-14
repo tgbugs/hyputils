@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 import pytest
 
-from h.util import markdown
+from hyputils.memex.util import markdown
 
 
 class TestRender(object):

@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 import pytest
 
-from h.util import user as user_util
+from hyputils.memex.util import user as user_util
 
 
 def test_split_user():

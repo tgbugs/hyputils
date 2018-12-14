@@ -5,8 +5,8 @@ from __future__ import unicode_literals
 import re
 import pytest
 
-from h.util import document_claims
-from h.util.document_claims import doi_uri_from_string
+from hyputils.memex.util import document_claims
+from hyputils.memex.util.document_claims import doi_uri_from_string
 
 
 class TestDocumentURIsFromLinks(object):

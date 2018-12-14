@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 import pytest
 
-from h.models.annotation import Annotation
+from hyputils.memex.models.annotation import Annotation
 
 
 def test_parent_id_of_direct_reply():

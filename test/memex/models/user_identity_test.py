@@ -4,8 +4,8 @@ from __future__ import unicode_literals
 import pytest
 import sqlalchemy.exc
 
-from h import models
-from h._compat import PY2
+from hyputils.memex import models
+from hyputils.memex._compat import PY2
 
 
 class TestUserIdentity(object):

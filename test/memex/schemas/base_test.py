@@ -2,7 +2,7 @@
 
 from __future__ import unicode_literals
 
-from h._compat import PY2
+from hyputils.memex._compat import PY2
 import enum
 from mock import Mock
 import pytest
@@ -10,8 +10,8 @@ import pytest
 import colander
 from pyramid.exceptions import BadCSRFToken
 
-from h.schemas import ValidationError
-from h.schemas.base import enum_type, CSRFSchema, JSONSchema
+from hyputils.memex.schemas import ValidationError
+from hyputils.memex.schemas.base import enum_type, CSRFSchema, JSONSchema
 
 
 class ExampleCSRFSchema(CSRFSchema):

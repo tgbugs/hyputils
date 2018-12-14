@@ -8,8 +8,8 @@ import pytest
 import sqlalchemy as sa
 import transaction
 
-from h import models
-from h.models import document
+from hyputils.memex import models
+from hyputils.memex.models import document
 
 
 class TestDocumentFindByURIs(object):

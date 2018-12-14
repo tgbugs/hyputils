@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import exc
 from pyramid.authorization import ACLAuthorizationPolicy
 
-from h import models
+from hyputils.memex import models
 
 
 class TestUserModelDataConstraints(object):

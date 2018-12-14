@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 
 import pytest
-from h import models
+from hyputils.memex import models
 
 
 def test_init_sets_given_attributes():

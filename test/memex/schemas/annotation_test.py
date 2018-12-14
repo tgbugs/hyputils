@@ -7,14 +7,14 @@ import pytest
 import re
 from webob.multidict import NestedMultiDict, MultiDict
 
-from h.search.query import LIMIT_DEFAULT, LIMIT_MAX, OFFSET_MAX
-from h.schemas import ValidationError
-from h.schemas.annotation import (
+from hyputils.memex.search.query import LIMIT_DEFAULT, LIMIT_MAX, OFFSET_MAX
+from hyputils.memex.schemas import ValidationError
+from hyputils.memex.schemas.annotation import (
     CreateAnnotationSchema,
     SearchParamsSchema,
     UpdateAnnotationSchema,
 )
-from h.schemas.util import validate_query_params
+from hyputils.memex.schemas.util import validate_query_params
 
 
 def create_annotation_schema_validate(request, data):

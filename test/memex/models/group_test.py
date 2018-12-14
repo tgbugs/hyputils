@@ -7,8 +7,8 @@ import pytest
 from pyramid import security
 from pyramid.authorization import ACLAuthorizationPolicy
 
-from h import models
-from h.models.group import (
+from hyputils.memex import models
+from hyputils.memex.models.group import (
     JoinableBy,
     ReadableBy,
     WriteableBy,
