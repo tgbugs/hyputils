@@ -2,11 +2,15 @@ H=${HOME}/git/h/h
 M=${HOME}/git/hyputils/hyputils/memex
 HT=${HOME}/git/h/tests/h
 MT=${HOME}/git/hyputils/test/memex
+HTC=${HOME}/git/h/tests/common
+MTC=${HOME}/git/hyputils/test/common
 
 mkdir ${M}/db
 mkdir ${M}/models
 mkdir ${M}/schemas
 mkdir ${M}/util
+
+mkdir ${MTC}/factories
 
 mkdir ${MT}/db
 mkdir ${MT}/models
@@ -21,6 +25,11 @@ cpfile () {
 cptest () {
     FILEPATH=${1}
     cp ${HT}/${FILEPATH} ${MT}/${FILEPATH}
+}
+
+cpcommon () {
+    FILEPATH=${1}
+    cp ${HTC}/${FILEPATH} ${MTC}/${FILEPATH}
 }
 
 # source code
@@ -49,6 +58,20 @@ cpfile util/group.py
 cpfile util/markdown.py
 cpfile util/uri.py
 cpfile util/user.py
+
+# test common
+
+cpcommon __init__.py
+cpcommon matchers.py
+
+cpcommon factories/__init__.py
+cpcommon factories/base.py
+cpcommon factories/annotation.py
+cpcommon factories/document.py
+cpcommon factories/group.py
+cpcommon factories/organization.py
+cpcommon factories/user.py
+cpcommon factories/user_identity.py
 
 # tests
 
