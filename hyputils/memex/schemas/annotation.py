@@ -102,7 +102,7 @@ class CreateAnnotationSchema(object):
 
         uri = appstruct.pop("uri", "").strip()
         if not uri:
-            raise ValidationError("uri: " + _("'uri' is a required property"))
+            raise ValidationError("uri: " + "'uri' is a required property")
         new_appstruct["target_uri"] = uri
 
         new_appstruct["text"] = appstruct.pop("text", "")
@@ -164,7 +164,7 @@ class UpdateAnnotationSchema(object):
         if "uri" in appstruct:
             new_uri = appstruct.pop("uri").strip()
             if not new_uri:
-                raise ValidationError("uri: " + _("'uri' is a required property"))
+                raise ValidationError("uri: " + "'uri' is a required property")
             new_appstruct["target_uri"] = new_uri
 
         if "permissions" in appstruct:
