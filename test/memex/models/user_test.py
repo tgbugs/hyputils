@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import pytest
 from sqlalchemy import exc
-from pyramid.authorization import ACLAuthorizationPolicy
+from hyputils.memex.security import security
 
 from hyputils.memex import models
 
@@ -325,7 +325,7 @@ class TestUserACL(object):
 
     @pytest.fixture
     def authz_policy(self):
-        return ACLAuthorizationPolicy()
+        return security.ACLAuthorizationPolicy()
 
     @pytest.fixture
     def user(self):
