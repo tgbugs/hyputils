@@ -49,7 +49,7 @@ Session = sessionmaker()
 def init(engine, base=Base, should_create=False, should_drop=False, authority=None):
     """Initialise the database tables managed by `h.db`."""
     # Import models package to populate the metadata
-    import h.models  # noqa
+    import hyputils.memex.models  # noqa
 
     if should_drop:
         base.metadata.reflect(engine)
