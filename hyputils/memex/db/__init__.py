@@ -21,8 +21,6 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import exc
 from sqlalchemy.orm import sessionmaker
 
-from hyputils.memex.util.session_tracker import Tracker
-
 __all__ = ("Base", "Session", "init", "make_engine")
 
 log = logging.getLogger(__name__)
