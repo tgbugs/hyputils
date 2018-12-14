@@ -10,6 +10,7 @@ cpfile () {
     cp ${H}/${FILEPATH} ${M}/${FILEPATH}
 }
 cpfile _compat.py
+cpfile pubid.py
 
 cpfile db/__init__.py
 cpfile db/mixins.py
@@ -30,3 +31,4 @@ cpfile schemas/base.py
 cpfile util/__init__.py
 cpfile util/uri.py
 cpfile util/user.py
+cpfile util/markdown.py
