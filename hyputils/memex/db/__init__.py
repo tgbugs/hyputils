@@ -21,6 +21,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import exc
 from sqlalchemy.orm import sessionmaker
 
+emptyset = """<svg width="400" height="400" version="1.0" xmlns="http://www.w3.org/2000/svg">
+<path d="m377.25 39.844-48.828 48.828c27.994 31.739 41.992 68.929 41.992 111.57-3.7e-4 47.038-16.683 87.199-50.049 120.48-33.366 33.285-73.568 49.927-120.61 49.927-42.481-1e-5 -79.671-13.835-111.57-41.504l-48.34 48.096-17.09-17.09 48.584-47.852c-27.995-32.226-41.992-69.58-41.992-112.06-2.9e-5 -47.038 16.642-87.199 49.927-120.48 33.284-33.284 73.445-49.926 120.48-49.927 42.643 3.36e-4 79.834 13.998 111.57 41.992l49.072-49.072 16.846 17.09zm-83.008 48.828c-27.018-23.274-58.513-34.912-94.482-34.912-40.202 3.12e-4 -74.666 14.364-103.39 43.091-28.727 28.727-43.091 63.192-43.091 103.39-5.3e-5 35.97 11.637 67.464 34.912 94.482l206.05-206.05zm52.002 111.57c-3.4e-4 -35.97-11.638-67.464-34.912-94.482l-206.05 206.05c27.018 23.275 58.512 34.912 94.482 34.912 40.202 1e-5 74.666-14.364 103.39-43.091 28.727-28.727 43.09-63.192 43.091-103.39z"/>
+</svg>"""
+
+
 __all__ = ("Base", "Session", "init", "make_engine")
 
 log = logging.getLogger(__name__)
@@ -72,9 +77,10 @@ def make_engine(settings):
 def _maybe_create_default_organization(engine, authority, logopath=None):
     from hyputils.memex import models
     if logopath is None:
-        from os.path import dirname
-        workingdir = dirname(dirname(dirname(__file__)))
-        logopath = workingdir + '/' + 'h/static/images/icons/logo.svg'
+        logo = emptyset
+    else:
+        with open(logopath, 'rb') as f:
+            logo = f.read().decode("utf-8")
 
     session = Session(bind=engine)
 
@@ -87,8 +93,7 @@ def _maybe_create_default_organization(engine, authority, logopath=None):
         default_org = models.Organization(
             name="Hypothesis", authority=authority, pubid="__default__"
         )
-        with open(logopath, 'rb') as h_logo:
-            default_org.logo = h_logo.read().decode("utf-8")
+        default_org.logo = logo
         session.add(default_org)
 
     session.commit()
