@@ -6,7 +6,6 @@ import factory
 
 from hyputils.memex import models
 
-from .activation import Activation
 from .base import ModelFactory
 
 
@@ -41,7 +40,6 @@ class User(ModelFactory):
         model = models.User
 
     class Params:
-        inactive = factory.Trait(activation=factory.SubFactory(Activation))
         # A count that's appended to non-unique usernames to make them unique.
         count = factory.Sequence(lambda n: "%d" % n)
         # The non-unique part of the generated username.
