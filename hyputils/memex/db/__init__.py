@@ -21,7 +21,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import exc
 from sqlalchemy.orm import sessionmaker
 
-from h.util.session_tracker import Tracker
+from hyputils.memex.util.session_tracker import Tracker
 
 __all__ = ("Base", "Session", "init", "make_engine")
 
@@ -72,7 +72,7 @@ def make_engine(settings):
 
 
 def _maybe_create_default_organization(engine, authority, logopath=None):
-    from h import models
+    from hyputils.memex import models
     if logopath is None:
         from os.path import dirname
         workingdir = dirname(dirname(dirname(__file__)))
@@ -100,8 +100,8 @@ def _maybe_create_default_organization(engine, authority, logopath=None):
 
 
 def _maybe_create_world_group(engine, authority, default_org):
-    from h import models
-    from h.models.group import ReadableBy, WriteableBy
+    from hyputils.memex import models
+    from hyputils.memex.models.group import ReadableBy, WriteableBy
 
     session = Session(bind=engine)
     world_group = session.query(models.Group).filter_by(pubid="__world__").one_or_none()

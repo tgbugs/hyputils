@@ -5,8 +5,8 @@ from __future__ import unicode_literals
 import copy
 from dateutil.parser import parse
 
-from h.schemas.base import JSONSchema, ValidationError
-from h.util import document_claims
+from hyputils.memex.schemas.base import JSONSchema, ValidationError
+from hyputils.memex.util import document_claims
 
 
 class AnnotationSchema(JSONSchema):

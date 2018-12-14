@@ -9,10 +9,10 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as pg
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from h._compat import urlparse
-from h.db import Base, mixins
-from h.models.annotation import Annotation
-from h.util.uri import normalize as uri_normalize
+from hyputils.memex._compat import urlparse
+from hyputils.memex.db import Base, mixins
+from hyputils.memex.models.annotation import Annotation
+from hyputils.memex.util.uri import normalize as uri_normalize
 
 log = logging.getLogger(__name__)
 

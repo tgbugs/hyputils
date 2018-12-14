@@ -64,7 +64,7 @@ elsewhere in the Hypothesis application. URI expansion is handled by
 """
 import re
 
-from h._compat import (
+from hyputils.memex._compat import (
     PY2,
     url_quote,
     url_quote_plus,

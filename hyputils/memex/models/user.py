@@ -8,9 +8,9 @@ import sqlalchemy as sa
 from sqlalchemy.ext.hybrid import Comparator, hybrid_property
 from sqlalchemy.ext.declarative import declared_attr
 
-from h._compat import string_types
-from h.db import Base
-from h.util.user import split_user
+from hyputils.memex._compat import string_types
+from hyputils.memex.db import Base
+from hyputils.memex.util.user import split_user
 from hyputils.memex.security import security
 
 USERNAME_MIN_LENGTH = 3

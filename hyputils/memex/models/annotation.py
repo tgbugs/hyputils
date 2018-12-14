@@ -9,9 +9,9 @@ from sqlalchemy.dialects import postgresql as pg
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict, MutableList
 
-from h.db import Base, types
-from h.util import markdown, uri
-from h.util.user import split_user
+from hyputils.memex.db import Base, types
+from hyputils.memex.util import markdown, uri
+from hyputils.memex.util.user import split_user
 
 
 class Annotation(Base):

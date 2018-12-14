@@ -3,9 +3,9 @@
 from __future__ import unicode_literals
 import sqlalchemy as sa
 
-from h.db import Base
-from h.db import mixins
-from h import pubid
+from hyputils.memex.db import Base
+from hyputils.memex.db import mixins
+from hyputils.memex import pubid
 
 ORGANIZATION_DEFAULT_PUBID = "__default__"
 ORGANIZATION_NAME_MIN_CHARS = 1

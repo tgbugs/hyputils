@@ -3,7 +3,7 @@
 """Custom SQLAlchemy types for use with the Annotations API database."""
 from __future__ import unicode_literals
 
-from h._compat import string_types
+from hyputils.memex._compat import string_types
 import binascii
 import base64
 import uuid

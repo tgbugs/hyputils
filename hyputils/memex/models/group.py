@@ -8,10 +8,10 @@ import re
 import sqlalchemy as sa
 import slugify
 
-from h.db import Base
-from h.db import mixins
-from h import pubid
-from h.util.group import split_groupid
+from hyputils.memex.db import Base
+from hyputils.memex.db import mixins
+from hyputils.memex import pubid
+from hyputils.memex.util.group import split_groupid
 from hyputils.memex.security import security
 
 
