@@ -8,7 +8,6 @@ from hyputils.memex import models
 from hyputils.memex.models.group import JoinableBy, ReadableBy, WriteableBy
 
 from .base import ModelFactory
-from .group_scope import GroupScope
 from .user import User
 
 
@@ -24,13 +23,6 @@ class Group(ModelFactory):
     readable_by = ReadableBy.members
     writeable_by = WriteableBy.members
     members = factory.LazyAttribute(lambda obj: [obj.creator])
-
-    @factory.post_generation
-    def scopes(self, create, scopes=0, **kwargs):
-        if isinstance(scopes, int):
-            scopes = [GroupScope(group=self) for _ in range(0, scopes)]
-
-        self.scopes = scopes or []
 
 
 class OpenGroup(Group):
