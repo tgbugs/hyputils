@@ -199,26 +199,6 @@ class TestUserModelUserId(object):
         assert result == []
 
 
-class TestUserModel(object):
-    def test_User_activate_activates_user(self, db_session):
-        user = models.User(
-            authority="example.com", username="kiki", email="kiki@kiki.com"
-        )
-        activation = models.Activation()
-        user.activation = activation
-        db_session.add(user)
-        db_session.flush()
-
-        user.activate()
-        db_session.commit()
-
-        assert user.is_activated
-
-    def test_privacy_accepted_defaults_to_None(self, db_session):
-        # nullable
-        assert getattr(models.User(), "privacy_accepted") is None
-
-
 class TestUserGetByEmail(object):
     def test_it_returns_a_user(self, db_session, users):
         user = users["meredith"]
