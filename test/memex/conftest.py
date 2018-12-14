@@ -50,6 +50,11 @@ class DummySession(object):
         self.flushed = True
 
 
+class DummyRequest(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+
 def autopatcher(request, target, **kwargs):
     """Patch and cleanup automatically. Wraps :py:func:`mock.patch`."""
     options = {"autospec": True}
@@ -132,13 +137,13 @@ def patch(request):
 
 
 @pytest.fixture
-def pyramid_request(db_session, fake_feature, pyramid_settings):
+def pyramid_request(db_session):
     """Dummy Pyramid request object."""
-    request = testing.DummyRequest(db=db_session, feature=fake_feature)
+    request = DummyRequest(db=db_session)
+    request.authenticated_userid = 'THIS IS NOT ACTULLY A USERID LOL'
     request.default_authority = text_type(TEST_AUTHORITY)
     request.create_form = mock.Mock()
     request.matched_route = mock.Mock()
-    request.registry.settings = pyramid_settings
     request.is_xhr = False
     request.params = MultiDict()
     request.GET = request.params
