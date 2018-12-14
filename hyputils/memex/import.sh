@@ -96,3 +96,6 @@ cptest util/document_claims_test.py
 cptest util/markdown_test.py
 cptest util/uri_test.py
 cptest util/user_test.py
+
+# update imports
+# sed -i 's/from h\(\.\|\ \)/from hyputils.memex\1/' {,*/}*.py
