@@ -9,7 +9,6 @@ from __future__ import unicode_literals
 import functools
 import os
 
-import deform
 import mock
 import pytest
 
@@ -17,10 +16,10 @@ import sqlalchemy
 from sqlalchemy.orm import sessionmaker
 from webob.multidict import MultiDict
 
-from h import db
-from h import models
-from h.settings import database_url
-from h._compat import text_type
+from hyputils.memex import db
+from hyputils.memex import models
+from hyputils.memex.settings import database_url
+from hyputils.memex._compat import text_type
 
 TEST_AUTHORITY = "example.com"
 TEST_DATABASE_URL = database_url(
