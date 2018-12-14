@@ -21,8 +21,11 @@ setup(name='hyputils',
           'requests',
           'robobrowser',
           'websockets',
+          # memex
+          'slugify',
+          'webob',
       ],
-      extras_require={'dev':['yaml', 'zdesk']},
+      extras_require={'dev':['mock', 'pytest', 'yaml', 'zdesk']},
       entry_points={
           'console_scripts': [
           ],
