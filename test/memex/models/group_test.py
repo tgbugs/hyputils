@@ -4,8 +4,7 @@ from __future__ import unicode_literals
 
 import pytest
 
-from pyramid import security
-from pyramid.authorization import ACLAuthorizationPolicy
+from hyputils.memex.security import security
 
 from hyputils.memex import models
 from hyputils.memex.models.group import (
@@ -390,7 +389,7 @@ class TestGroupACL(object):
 
     @pytest.fixture
     def authz_policy(self):
-        return ACLAuthorizationPolicy()
+        return security.ACLAuthorizationPolicy()
 
     @pytest.fixture
     def group(self):
