@@ -45,6 +45,7 @@ cpfile schemas/base.py
 
 cpfile util/__init__.py
 cpfile util/document_claims.py
+cpfile util/group.py
 cpfile util/markdown.py
 cpfile util/uri.py
 cpfile util/user.py
