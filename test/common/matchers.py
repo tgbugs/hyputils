@@ -30,8 +30,6 @@ from __future__ import unicode_literals
 
 import re
 
-from pyramid import httpexceptions
-
 
 class Matcher(object):
     def __eq__(self, other):
@@ -124,30 +122,6 @@ class MappingContaining(Matcher):
 
     def __repr__(self):
         return "<mapping containing {!r}>".format(self.key)
-
-
-class Redirect302To(Matcher):
-    """Matches any HTTPFound redirect to the given URL."""
-
-    def __init__(self, location):
-        self.location = location
-
-    def __eq__(self, other):
-        if not isinstance(other, httpexceptions.HTTPFound):
-            return False
-        return other.location == self.location
-
-
-class Redirect303To(Matcher):
-    """Matches any HTTPSeeOther redirect to the given URL."""
-
-    def __init__(self, location):
-        self.location = location
-
-    def __eq__(self, other):
-        if not isinstance(other, httpexceptions.HTTPSeeOther):
-            return False
-        return other.location == self.location
 
 
 class Regex(Matcher):
