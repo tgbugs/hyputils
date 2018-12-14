@@ -52,6 +52,8 @@ cpfile util/user.py
 
 # tests
 
+cptest conftest.py
+
 cptest db/__init__.py
 cptest db/types_test.py
 
