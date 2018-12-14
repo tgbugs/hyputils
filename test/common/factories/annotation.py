@@ -9,8 +9,8 @@ import uuid
 import factory
 from sqlalchemy import orm
 
-from h import models
-from h.models.document import update_document_metadata
+from hyputils.memex import models
+from hyputils.memex.models.document import update_document_metadata
 
 from .base import FAKER, ModelFactory
 from .document import Document, DocumentMeta, DocumentURI

@@ -4,8 +4,8 @@ from __future__ import unicode_literals
 
 import factory
 
-from h import models
-from h.models.group import JoinableBy, ReadableBy, WriteableBy
+from hyputils.memex import models
+from hyputils.memex.models.group import JoinableBy, ReadableBy, WriteableBy
 
 from .base import ModelFactory
 from .group_scope import GroupScope

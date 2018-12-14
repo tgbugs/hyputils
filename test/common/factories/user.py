@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 import factory
 
-from h import models
+from hyputils.memex import models
 
 from .activation import Activation
 from .base import ModelFactory
