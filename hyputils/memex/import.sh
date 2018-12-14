@@ -1,14 +1,29 @@
-mkdir db
-mkdir models
-mkdir schemas
-mkdir util
 H=${HOME}/git/h/h
 M=${HOME}/git/hyputils/hyputils/memex
+HT=${HOME}/git/h/tests/h
+MT=${HOME}/git/hyputils/test/memex
+
+mkdir ${M}/db
+mkdir ${M}/models
+mkdir ${M}/schemas
+mkdir ${M}/util
+
+mkdir ${MT}/db
+mkdir ${MT}/models
+mkdir ${MT}/schemas
+mkdir ${MT}/util
 
 cpfile () {
     FILEPATH=${1}
     cp ${H}/${FILEPATH} ${M}/${FILEPATH}
 }
+
+cptest () {
+    FILEPATH=${1}
+    cp ${HT}/${FILEPATH} ${MT}/${FILEPATH}
+}
+
+# source code
 cpfile _compat.py
 cpfile pubid.py
 
@@ -29,6 +44,28 @@ cpfile schemas/annotation.py
 cpfile schemas/base.py
 
 cpfile util/__init__.py
+cpfile util/document_claims.py
+cpfile util/markdown.py
 cpfile util/uri.py
 cpfile util/user.py
-cpfile util/markdown.py
+
+# tests
+
+cptest db/*
+
+cptest models/annotation_test.py
+cptest models/document_test.py
+cptest models/group_test.py
+cptest models/organization_test.py
+cptest models/user_identity_test.py
+cptest models/user_test.py
+
+cptest schemas/__init__.py
+cptest schemas/annotation_test.py
+cptest schemas/base_test.py
+
+cptest util/__init__.py
+cptest util/document_claims_test.py
+cptest util/markdown_test.py
+cptest util/uri_test.py
+cptest util/user_test.py
