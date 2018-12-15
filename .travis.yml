@@ -16,6 +16,9 @@ python:
 
 addons:
   postgresql: "10"
+  apt:
+    packages:
+      - postgresql-10
 
 services:
   - postgresql
