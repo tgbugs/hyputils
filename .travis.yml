@@ -19,6 +19,7 @@ addons:
   apt:
     packages:
       - postgresql-10
+      - postgresql-client-10
 
 services:
   - postgresql
@@ -29,7 +30,7 @@ install:
   - pipenv install --system --skip-lock --deploy --verbose
 
 before_script:
-  - createdb htest
+  - createdb10 htest
 
 script:
   - PYTHONWARNINGS=default pipenv run pytest --cov=hyputils
