@@ -23,7 +23,7 @@ services:
 install:
   - pip install pipenv
   - pip install coverage coveralls && export HAS_COVERALLS=1
-  - pipenv install --system --skip-lock --deploy --verbose
+  - pipenv install --dev --system --skip-lock --deploy
 
 before_script:
   - createdb htest
