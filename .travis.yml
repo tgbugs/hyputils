@@ -14,13 +14,22 @@ branches:
 python:
   - 3.6
 
+addons:
+  postgresql: "10"
+
+services:
+  - postgresql
+
 install:
   - pip install pipenv
-  - pip install coverage coveralls nose-timer && export HAS_COVERALLS=1
+  - pip install coverage coveralls && export HAS_COVERALLS=1
   - pipenv install --system --skip-lock --deploy --verbose
 
+before_script:
+  - createdb htest
+
 script:
-  - PYTHONWARNINGS=default pipenv run nosetests --with-coverage --cover-tests --cover-package=hyputils
+  - PYTHONWARNINGS=default pipenv run pytest --cov=hyputils
 
 after_success:
   - if [[ $HAS_COVERALLS ]] ; then coveralls ; fi

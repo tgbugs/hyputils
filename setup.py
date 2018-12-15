@@ -22,10 +22,15 @@ setup(name='hyputils',
           'robobrowser',
           'websockets',
           # memex
-          'slugify',
+          'bleach',
+          'jsonschema',
+          'mistune',
+          'psycopg2',
+          'python-slugify',
+          'sqlalchemy',
           'webob',
       ],
-      extras_require={'dev':['factory-boy', 'mock', 'pytest', 'yaml', 'zdesk']},
+      extras_require={'dev':['factory-boy', 'mock', 'pytest', 'pytest-cov', 'pyyaml', 'zdesk']},
       entry_points={
           'console_scripts': [
           ],
