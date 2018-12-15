@@ -1,14 +1,10 @@
+import os
 import unittest
 from time import sleep
+import pytest
 from hyputils.handlers import annotationSyncHandler
 from hyputils.subscribe import AnnotationStream, preFilter
 from hyputils.hypothesis import group
-
-try:
-    from nose.tools import nottest
-except:
-    def nottest(function):
-        return function
 
 # TODO use our own little websocket server to send annos as if they came from hypothesis
 
@@ -30,7 +26,7 @@ class TestStream(unittest.TestCase):
         exit_loop()
         stream_thread.join()
 
-    @nottest
+    @pytest.mark.skip(reason='local test interactive and blocks')
     def test_9999_get_from_ws(self):
         from IPython import embed
         fake_mem = FakeMem()

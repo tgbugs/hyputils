@@ -8,6 +8,8 @@ annos = get_annos()
 
 
 class TestZHelper(unittest.TestCase):
+    """ NOTE these tests are stateful """
+
     def test_0_partial(self):
         partial = [HypothesisHelper(a, annos) for a in annos[:100]]
         repr(partial)
@@ -28,9 +30,19 @@ class TestZHelper(unittest.TestCase):
         hanno = HypothesisHelper.byId('not a real id')
         assert hanno is None
 
-    def test_4_by_tags(self):
-        hannos = HypothesisHelper.byTags('RRIDCUR:Duplicate')
-        assert all('RRIDCUR:Duplicate' in h.tags for h in hannos)
+    def test_4_populate(self):
+        [h.populateTags() for h in HypothesisHelper]
 
-    def test_5_not_annos(self):
+    def test_5_by_tags(self):
+        test_tag = None
+        max_tags = 0
+        for tag, tset in HypothesisHelper._tagIndex.items():
+            lt = len(tset)
+            if lt > max_tags:
+                max_tags = lt
+                test_tag = tag
+        hannos = HypothesisHelper.byTags(test_tag)
+        assert all(test_tag in h.tags for h in hannos)
+
+    def test_6_not_annos(self):
         HypothesisHelper(annos[0], annos[:10])

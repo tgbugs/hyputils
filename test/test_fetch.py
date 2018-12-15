@@ -1,4 +1,6 @@
+import os
 import unittest
+import pytest
 from hyputils.hypothesis import AnnoFetcher
 from hyputils.hypothesis import api_token, username, group
 
@@ -55,6 +57,7 @@ class TestFetch(unittest.TestCase):
         except TypeError:
             pass
 
+    @pytest.mark.skipif('CI' not in os.environ, reason='CI test, test user must have no public annos')
     def test_world_nomax(self):
         bad_annos = AnnoFetcher(api_token, username, '__world__')
         annos = bad_annos.get_annos_from_api()
