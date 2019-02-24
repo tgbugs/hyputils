@@ -694,10 +694,13 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 self._tagIndex.pop(tag)
 
     @classmethod
-    def byIri(cls, iri):
+    def byIri(cls, iri, prefix=False):
         norm_iri = norm(iri)
         for obj in cls.objects.values():
-            if norm(obj.uri) == norm_iri:
+            norm_ouri = norm(obj.uri)
+            if norm_ouri == norm_iri:
+                yield obj
+            elif prefix and norm_ouri.startswith(norm_iri):
                 yield obj
 
     def __new__(cls, anno, annos):
