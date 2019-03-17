@@ -6,6 +6,7 @@ import json
 import hashlib
 import logging
 import requests
+from types import GeneratorType
 from collections import Counter, defaultdict
 
 try:
@@ -498,11 +499,24 @@ class HypothesisUtils:
 class HypothesisAnnotation:
     """Encapsulate one row of a Hypothesis API search."""
     def __init__(self, row):
+        if isinstance(row, HypothesisAnnotation):
+            row = row._row
+
         self._row = row
 
-    def normalized(self):
-        return {k:getattr
-        }
+    def _normalized(self):
+        out = {}
+        for k in dir(self):
+            if not k.startswith('_'):
+                v = getattr(self.__class__, k, None)  # need to walk up the mro
+                if isinstance(v, property):
+                    value = getattr(self, k)
+                    if isinstance(value, GeneratorType):
+                        value = list(value)
+
+                    out[k] = value
+
+        return out
 
     @property
     def id(self):
@@ -538,7 +552,7 @@ class HypothesisAnnotation:
         document = self.document
         if 'title' in document:
             title = document['title']
-            if isinstance(t, list) and len(t):
+            if isinstance(title, list) and len(title):
                 title = title[0]
         else:
             title = self.uri
