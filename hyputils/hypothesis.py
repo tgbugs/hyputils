@@ -3,7 +3,6 @@ from __future__ import print_function
 import os
 from os import environ, chmod
 import json
-import pickle
 import hashlib
 import logging
 import requests
@@ -29,11 +28,22 @@ group = environ.get('HYP_GROUP', '__world__')
 UID = os.getuid()
 
 
+class JEncode(json.JSONEncoder):
+     def default(self, obj):
+         if isinstance(obj, tuple):
+             return list(obj)
+         elif isinstance(obj, HypothesisAnnotation):
+             return obj._row
+
+         # Let the base class default method raise the TypeError
+         return json.JSONEncoder.default(self, obj)
+
+
 def group_to_memfile(group, post=lambda group_hash:None):
     m = hashlib.sha256()
     m.update(group.encode())
     group_hash = m.hexdigest()
-    memfile = f'/tmp/annos-{UID}-{group_hash}.pickle'
+    memfile = f'/tmp/annos-{UID}-{group_hash}.json'
     post(group_hash)
     return memfile
 
@@ -128,7 +138,7 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         super().__init__(api_token=api_token, username=username, group=group)
         if memoization_file is None:
             if group == '__world__':
-                memoization_file = f'/tmp/annos-{UID}-__world__-{username}.pickle'
+                memoization_file = f'/tmp/annos-{UID}-__world__-{username}.json'
             else:
                 memoization_file = group_to_memfile(group)
         self.memoization_file = memoization_file
@@ -140,21 +150,27 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
                 raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
 
     def get_annos_from_file(self):
-        annos = []
+        jblobs = []
         last_sync_updated = None
         if self.memoization_file is not None:
             try:
-                with open(self.memoization_file, 'rb') as f:
-                    annos_lsu = pickle.load(f)
-                    annos, last_sync_updated = annos_lsu
+                with open(self.memoization_file, 'rt') as f:
+                    jblobs_lsu = json.load(f)
+                    jblobs, last_sync_updated = jblobs_lsu
                     if isinstance(last_sync_updated, HypothesisAnnotation):
-                        annos = annos_lsu
+                        jblobs = jblobs_lsu
                         last_sync_updated = last_sync_updated['updated']
-                if annos is None:
+                if jblobs is None:
                     raise ValueError('wat')
+            except json.decoder.JSONDecodeError:
+                with open(self.memoization_file, 'rt') as f:
+                    data = f.read()
+                if not data:
+                    print('memoization file exists but is empty')
             except FileNotFoundError:
                 print('memoization file does not exist')
 
+        annos = [HypothesisAnnotation(jb) for jb in jblobs]
         self.check_group(annos)
         return annos, last_sync_updated
 
@@ -218,10 +234,10 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
             if not os.path.exists(self.memoization_file):
                 do_chmod = True
 
-            with open(self.memoization_file, 'wb') as f:
+            with open(self.memoization_file, 'wt') as f:
                 lsu = annos[-1].updated if annos else None
                 alsu = annos, lsu
-                pickle.dump(alsu, f)
+                json.dump(alsu, f, cls=JEncode)
 
             if do_chmod:
                 chmod(self.memoization_file, 0o600)
@@ -482,100 +498,169 @@ class HypothesisAnnotation:
     """Encapsulate one row of a Hypothesis API search."""
     def __init__(self, row):
         self._row = row
-        self.type = None
-        self.id = row['id']
-        self.created = row['created']
-        self.updated = row['updated']
-        self.user = row['user'].replace('acct:','').replace('@hypothes.is','')
 
-        if 'uri' in row:    # should it ever not?
-            self.uri = row['uri']
+    def normalized(self):
+        return {k:getattr
+        }
+
+    @property
+    def id(self):
+        return self._row['id']
+
+    @property
+    def user(self):
+        return self._row['user'].replace('acct:','').replace('@hypothes.is','')
+
+    @property
+    def created(self):
+        return self._row['created']
+
+    @property
+    def updated(self):
+        return self._row['updated']
+
+    @property
+    def document(self):
+        if 'document' in self._row:
+            return self._row['document']
         else:
-             self.uri = "no uri field for %s" % self.id
-        self.uri = self.uri.replace('https://via.hypothes.is/h/','').replace('https://via.hypothes.is/','')
+            return {}
 
-        if self.uri.startswith('urn:x-pdf') and 'document' in row:
-            if 'link' in row['document']:
-                self.links = row['document']['link']
-                for link in self.links:
-                    self.uri = link['href']
-                    if self.uri.encode('utf-8').startswith(b'urn:') == False:
-                        break
-            if self.uri.encode('utf-8').startswith(b'urn:') and 'filename' in row['document']:
-                self.uri = row['document']['filename']
+    @property
+    def filename(self):
+        document = self.document
+        if 'filename' in document:
+            return document['filename']
 
-        if 'document' in row and 'title' in row['document']:
-            t = row['document']['title']
+    @property
+    def doc_title(self):
+        document = self.document
+        if 'title' in document:
+            title = document['title']
             if isinstance(t, list) and len(t):
-                self.doc_title = t[0]
+                title = title[0]
+        else:
+            title = self.uri
+
+        title = title.replace('"',"'")
+        if not title:
+            title = 'untitled'
+
+        return title
+
+    @property
+    def links(self):
+        document = self.document
+        if 'link' in document:
+            yield from document['link']
+
+    @property
+    def uri(self):
+        if 'uri' in self._row:    # should it ever not?
+            uri = self._row['uri']
+        else:
+             uri = "no uri field for %s" % self.id
+
+        uri = uri.replace('https://via.hypothes.is/h/','').replace('https://via.hypothes.is/','')
+
+        if uri.startswith('urn:x-pdf'):
+            document = self.document
+            for link in self.links:
+                uri = link['href']
+                if uri.encode('utf-8').startswith(b'urn:') == False:
+                    break
+            if uri.encode('utf-8').startswith(b'urn:') and 'filename' in document:
+                uri = document['filename']
+
+        return uri
+
+    @property
+    def tags(self):
+        tags = []
+        if 'tags' in self._row and self._row['tags'] is not None:
+            tags = self._row['tags']
+            if isinstance(tags, list):  # I find it hard to believe this is ever not true
+                tags = [t.strip() for t in tags]
             else:
-                self.doc_title = t
+                raise BaseException('should never happen ...')
+
+        return tags
+
+    @property
+    def text(self):
+        text = ''
+        if 'text' in self._row:
+            text = self._row['text']
+
+        return text
+
+    @property
+    def references(self):
+        references = []
+        if 'references' in self._row:
+            references = self._row['references']
+
+        return references
+
+    @property
+    def is_page_note(self):
+        return self.type == 'pagenote'
+
+    @property
+    def type(self):
+        if self.references:
+            return 'reply'
+        elif self.targets and any('selector' in t for t in self.targets):
+            return 'annotation'
         else:
-            self.doc_title = self.uri
-        if self.doc_title is None:
-            self.doc_title = ''
-        self.doc_title = self.doc_title.replace('"',"'")
-        if self.doc_title == '': self.doc_title = 'untitled'
+            return 'pagenote'
 
-        self.tags = []
-        if 'tags' in row and row['tags'] is not None:
-            self.tags = row['tags']
-            if isinstance(self.tags, list):
-                self.tags = [t.strip() for t in self.tags]
+    @property
+    def targets(self):
+        # the spec says you can have multiple targets
+        # the implementation only supports one at this time
+        targets = []
+        if 'target' in self._row:
+            targets = self._row['target']
 
-        self.text = ''
-        if 'text' in row:
-            self.text = row['text']
+        return targets
 
-        self.references = []
-        if 'references' in row:
-            self.type = 'reply'
-            self.references = row['references']
+    @property
+    def selectors(self):
+        for target in self.targets:
+            if 'selector' in target:  # there are some that only have 'source'
+                for selector in target['selector']:
+                    yield selector
 
-        self.target = []
-        if 'target' in row:
-            self.target = row['target']
+    def _selector_value(self, type, name):
+        # obviously inefficient
+        for selector in self.selectors:
+            if 'type' in selector and selector['type'] == type:
+                return selector[name]
 
-        self.is_page_note = False
-        try:
-            if (self.references == [] and
-                self.target is not None and
-                len(self.target) and
-                isinstance(self.target,list) and
-                'selector' not in self.target[0]):
-                self.is_page_note = True
-                self.type = 'pagenote'
-        except BaseException as e:
-            hyp_logger.error(e)
+    @property
+    def prefix(self):
+        return self._selector_value('TextQuoteSelector', 'prefix')
 
-        if 'document' in row and 'link' in row['document']:
-            self.links = row['document']['link']
-            if not isinstance(self.links, list):
-                self.links = [{'href':self.links}]
-        else:
-            self.links = []
+    @property
+    def exact(self):
+        return self._selector_value('TextQuoteSelector', 'exact')
 
-        self.start = self.end = self.prefix = self.exact = self.suffix = None
-        try:
-            if isinstance(self.target,list) and len(self.target) and 'selector' in self.target[0]:
-                self.type = 'annotation'
-                selectors = self.target[0]['selector']
-                for selector in selectors:
-                    if 'type' in selector and selector['type'] == 'TextQuoteSelector':
-                        try:
-                            self.prefix = selector['prefix']
-                            self.exact = selector['exact']
-                            self.suffix = selector['suffix']
-                        except BaseException as e:
-                            hyp_logger.error(e)
-                    if 'type' in selector and selector['type'] == 'TextPositionSelector' and 'start' in selector:
-                        self.start = selector['start']
-                        self.end = selector['end']
-                    if 'type' in selector and selector['type'] == 'FragmentSelector' and 'value' in selector:
-                        self.fragment_selector = selector['value']
+    @property
+    def suffix(self):
+        return self._selector_value('TextQuoteSelector', 'suffix')
 
-        except BaseException as e:
-            hyp_logger.error(e)
+    @property
+    def start(self):
+        return self._selector_value('TextPositionSelector', 'start')
+
+    @property
+    def end(self):
+        return self._selector_value('TextPositionSelector', 'end')
+
+    @property
+    def fragment_selector(self):
+        return self._selector_value('FragmentSelector', 'value')
 
     @property
     def group(self): return self._row['group']
