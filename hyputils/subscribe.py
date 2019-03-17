@@ -11,7 +11,6 @@ from threading import Thread
 
 import certifi
 import websockets
-import robobrowser
 
 
 class Handler:
@@ -138,19 +137,6 @@ async def process_or_exit(websock, handler, exit_reader):
     for task in pending:
         task.cancel()
     raise future.exception()
-
-
-def get_auth_header(username, password):
-    url = 'https://hypothes.is/login'
-    br = robobrowser.RoboBrowser()
-    br.open(url)
-    form = br.get_form(id=0)
-    print(form)
-    form['username'].value = username
-    form['password'].value = password
-    br.submit_form(form)
-    session_cookie = br.session.cookies['session']
-    return {'Cookie': 'session=%s' % session_cookie}
 
 
 def setup_websocket(api_token, filters, filter_handlers,
