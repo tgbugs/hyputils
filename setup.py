@@ -19,7 +19,6 @@ setup(name='hyputils',
       install_requires=[
           'certifi',
           'requests',
-          'robobrowser',
           'websockets',
           # memex
           'bleach',
