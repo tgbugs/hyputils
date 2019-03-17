@@ -122,6 +122,7 @@ class AnnoFetcher:
             yield row
 
     def get_annos_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
+        # FIXME batch the memoization of these?
         return [HypothesisAnnotation(r) for r in
                 self.yield_from_api(search_after=search_after,
                                     limit=limit,
@@ -178,7 +179,7 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         self.check_group(annos)
         search_after = last_sync_updated
         # start from last_sync_updated because we assume that the websocket is unreliable
-        new_annos = self.get_annos_from_api(search_after)
+        new_annos = self.get_annos_from_api(search_after)  # FIXME batch these
         if not new_annos:
             return annos
         merged = annos + new_annos
