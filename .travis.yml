@@ -29,7 +29,7 @@ before_script:
   - createdb htest
 
 script:
-  - PYTHONWARNINGS=default pipenv run pytest --cov=hyputils
+  - PYTHONWARNINGS=none pipenv run pytest --verbose --cov=hyputils
 
 after_success:
   - if [[ $HAS_COVERALLS ]] ; then coveralls ; fi
