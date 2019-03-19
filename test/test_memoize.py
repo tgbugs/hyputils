@@ -1,10 +1,10 @@
 import unittest
 from hyputils.hypothesis import Memoizer
-from hyputils.hypothesis import api_token, username, group
+from hyputils.hypothesis import api_token, username, group, group_to_memfile
 
-get_annos = Memoizer('/tmp/test-memfile.pickle', api_token, username, group)
+get_annos = Memoizer(group_to_memfile(group), api_token, username, group)
 
-bad_memfile = '/tmp/test-bad-memfile.pickle'
+bad_memfile = '/tmp/test-bad-memfile.json'
 world_get = Memoizer(bad_memfile, api_token, username, '__world__')
 world_annos = world_get.get_annos_from_api(max_results=10)
 world_get.memoize_annos(world_annos)

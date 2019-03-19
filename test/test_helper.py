@@ -1,8 +1,8 @@
 import unittest
 from hyputils.hypothesis import Memoizer, HypothesisHelper
-from hyputils.hypothesis import api_token, username, group
+from hyputils.hypothesis import api_token, username, group, group_to_memfile
 
-get_annos = Memoizer('/tmp/test-memfile.pickle', api_token, username, group)
+get_annos = Memoizer(group_to_memfile(group), api_token, username, group)
 
 annos = get_annos()
 
