@@ -882,7 +882,14 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         return self.classn + f".byId('{self.id}')"
 
     @property
-    def _anno(self): return self._annos[self.id]  # this way updateds to annos will propagate
+    def _anno(self):
+        try:
+            return self._annos[self.id]  # this way updateds to annos will propagate
+        except KeyError as e:
+            #from IPython import embed
+            #embed()
+            print(self._tagIndex)
+            raise e
 
     # protect the original annotation from modification
     @property

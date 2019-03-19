@@ -53,6 +53,7 @@ class annotationSyncHandler(filterHandler):
             if act != 'create': # update delete
                 mid = message['payload'][0]['id']
                 for gone in [_ for _ in self.annos if _.id == mid]:
+                    # FIXME slow, replace when we switch over to using dicts
                     self.annos.remove(gone)
                 anno = self.DeletedAnno(mid)
             if act != 'delete':  # create update

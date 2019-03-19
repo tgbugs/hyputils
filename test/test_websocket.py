@@ -41,4 +41,3 @@ class TestStream(unittest.TestCase):
         embed()
         exit_loop()
         stream_thread.join()
-
