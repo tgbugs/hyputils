@@ -2,7 +2,6 @@ exclude .gitignore
 exclude .travis.yml
 exclude MANIFEST.in
 recursive-include test *
-recursive-exclude *.egg-info *
 recursive-exclude * *.pyc
 recursive-exclude * *.swp
 recursive-exclude * *.swo
