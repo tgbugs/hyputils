@@ -5,14 +5,6 @@
 
 python utilities for working with the hypothes.is api and websocket interface
 
-## Dependencies
-beautifulsoup
-certifi
-requests
-robobrowser
-websockets
-zdesk
-
 ## Config files
 `zendeskinfo.yaml` should contain
 ```
