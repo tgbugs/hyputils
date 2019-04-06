@@ -15,7 +15,7 @@ __version__ = find_version('hyputils/__init__.py')
 with open('README.md', 'rt') as f:
     long_description = f.read()
 
-tests_require = ['factory-boy', 'mock', 'pytest', 'pytest-cov']
+tests_require = ['factory-boy', 'mock', 'pytest', 'pytest-runner']
 setup(name='hyputils',
       version=__version__,
       description='Python utilities for the Hypothes.is REST api and websocket interface',
@@ -40,8 +40,7 @@ setup(name='hyputils',
           'requests',
           'websockets',
       ],
-      extras_require={'zdesk': ['pyyaml', 'zdesk'],
-                      'test': tests_require,
+      extras_require={'dev': ['pytest-cov', 'wheel'],
                       'memex':['bleach',
                                'python-dateutil',
                                'jsonschema',
@@ -50,7 +49,9 @@ setup(name='hyputils',
                                'python-slugify',
                                'sqlalchemy',
                                'webob',
-                              ]
+                              ],
+                      'test': tests_require,
+                      'zdesk': ['pyyaml', 'zdesk'],
                      },
       entry_points={
           'console_scripts': [
