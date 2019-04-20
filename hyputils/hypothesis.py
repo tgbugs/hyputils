@@ -49,10 +49,10 @@ def group_to_memfile(group, post=lambda group_hash:None):
     return memfile
 
 
-def makeSimpleLogger(name):
+def makeSimpleLogger(name, level=logging.INFO):
     # TODO use extra ...
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
     ch = logging.StreamHandler()  # FileHander goes to disk
     formatter = logging.Formatter('[%(asctime)s] - %(levelname)s - %(name)s - %(message)s')  # TODO file and lineno ...
     ch.setFormatter(formatter)
