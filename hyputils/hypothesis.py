@@ -101,7 +101,7 @@ class AnnoFetcher:
 
     def yield_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
         # use stop before if you want to be evil and hit the api in parallel
-        log.info('fetching after {search_after}')
+        log.info(f'fetching after {search_after}')
         # hard code these to simplify assumptions
         order = 'asc'
         sort = 'updated'
