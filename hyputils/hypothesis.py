@@ -47,13 +47,18 @@ def makeSimpleLogger(name, level=logging.INFO):
     logger = logging.getLogger(name)
     logger.setLevel(level)
     ch = logging.StreamHandler()  # FileHander goes to disk
-    formatter = logging.Formatter('[%(asctime)s] - %(levelname)s - %(name)s - %(message)s')  # TODO file and lineno ...
+    fmt = ('[%(asctime)s] - %(levelname)8s - '
+           '%(name)14s - '
+           '%(filename)16s:%(lineno)-4d - '
+           '%(message)s')
+    formatter = logging.Formatter(fmt)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
     return logger
 
 
-log = makeSimpleLogger('hyputils.hypothesis')
+log = makeSimpleLogger('hyputils')
+logd = makeSimpleLogger('hyputils-data')
 
 if 'CI' not in environ:
     log.debug(' '.join((api_token, username, group)))  # sanity check
@@ -824,7 +829,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             # we should not need `if not a.deleted` because a should not be in annos
             cls._annos.update({a.id:a for a in annos})  # FIXME this fails on deletes...
             if len(cls._annos) != len(annos):
-                log.critical(f'it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
+                logd.critical(f'it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
         try:
             self = cls.objects[anno.id]
             if self._updated == anno.updated:
@@ -933,7 +938,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                         #print('Orphaned reply', self.shareLink, f"{self.classn}.byId('{self.id}')")
                         self._orphanedReplies.add(self.id)
                     else:
-                        log.warning(f"Problem in {self.shareLink} {self.classn}.byId('{self.id}')")
+                        logd.warning(f"Problem in {self.shareLink} {self.classn}.byId('{self.id}')")
                 return None
             else:
                 h = self.__class__(anno, self.annos)
