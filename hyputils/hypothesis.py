@@ -14,13 +14,6 @@ try:
 except ImportError:
     from urllib import urlencode
 
-try:
-    from misc.debug import TDB
-    tdb=TDB()
-    printD=tdb.printD
-except ImportError:
-    printD = print
-
 # read environment variables # FIXME not the most modular...
 
 api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
@@ -60,10 +53,10 @@ def makeSimpleLogger(name, level=logging.INFO):
     return logger
 
 
-hyp_logger = makeSimpleLogger('hyputils.hypothesis')
+log = makeSimpleLogger('hyputils.hypothesis')
 
 if 'CI' not in environ:
-    hyp_logger.debug(' '.join((api_token, username, group)))  # sanity check
+    log.debug(' '.join((api_token, username, group)))  # sanity check
 
 # simple uri normalization
 
@@ -90,7 +83,7 @@ class AnnoFetcher:
     lsu_default = '1900-01-01T00:00:00.000000+00:00'  # don't need, None is ok
     def __init__(self, api_token=api_token, username=username, group=group):
         if api_token == 'TOKEN':
-            print('\x1b[31mWARNING:\x1b[0m NO API TOKEN HAS BEEN SET!')
+            log.warning('\x1b[31mWARNING:\x1b[0m NO API TOKEN HAS BEEN SET!')
         self.api_token = api_token
         self.username = username
         self.group = group
@@ -103,7 +96,7 @@ class AnnoFetcher:
 
     def yield_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
         # use stop before if you want to be evil and hit the api in parallel
-        print('fetching after', search_after)
+        log.info('fetching after', search_after)
         # hard code these to simplify assumptions
         order = 'asc'
         sort = 'updated'
@@ -114,7 +107,7 @@ class AnnoFetcher:
         if search_after:
             params['search_after'] = search_after
         if max_results is None and self.group == '__world__':
-            hyp_logger.info(f'searching __world__ as {self.username} since max_results was not set')
+            log.info(f'searching __world__ as {self.username} since max_results was not set')
             params['user'] = self.username
         if limit is not None:
             params['limit'] = limit
@@ -168,9 +161,9 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
                 with open(self.memoization_file, 'rt') as f:
                     data = f.read()
                 if not data:
-                    print('memoization file exists but is empty')
+                    log.info('memoization file exists but is empty')
             except FileNotFoundError:
-                print('memoization file does not exist')
+                log.info('memoization file does not exist')
 
         annos = [HypothesisAnnotation(jb) for jb in jblobs]
         self.check_group(annos)
@@ -199,8 +192,8 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         [merged_unique.remove(d) for d in to_remove]  # FIXME in the db context these need to be updates
         lmuc = len(merged_unique)
 
-        print('added', lmuc - la, 'new annotations')
-        print('updated', ld, 'annotations')
+        log.info(f'added {lmuc - la} new annotations')
+        log.info(f'updated {ld} annotations')
 
         if la != lmuc or dupes:
             self.memoize_annos(merged_unique)
@@ -231,7 +224,7 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
     def memoize_annos(self, annos):
         # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
-            print(f'annos updated, memoizing new version with, {len(annos)} members')
+            log.info(f'annos updated, memoizing new version with, {len(annos)} members')
             do_chmod = False
             if not os.path.exists(self.memoization_file):
                 do_chmod = True
@@ -245,7 +238,7 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
                 chmod(self.memoization_file, 0o600)
 
         else:
-            print(f'No memoization file, not saving.')
+            log.info(f'No memoization file, not saving.')
 
     def get_annos(self):
         annos, last_sync_updated = self.get_annos_from_file()
@@ -350,14 +343,14 @@ class HypothesisUtils:
         except requests.exceptions.SSLError as e:
             if self.ssl_retry < 5:
                 self.ssl_retry += 1
-                print('Ssl error at level', self.ssl_retry, 'retrying....')
+                log.error(f'Ssl error at level {self.ssl_retry} retrying....')
                 return self.authenticated_api_query(query_url)
             else:
                 self.ssl_retry = 0
-                hyp_logger.error(e)
+                log.error(e)
                 return {'ERROR':True, 'rows':tuple()}
         except BaseException as e:
-            hyp_logger.error(e)
+            log.error(e)
             #print('Request, status code:', r.status_code)  # this causes more errors...
             return {'ERROR':True, 'rows':tuple()}
 
@@ -398,7 +391,7 @@ class HypothesisUtils:
         try:
             r = self.post_annotation(payload)
         except BaseException as e:
-            hyp_logger.error(e)
+            log.error(e)
             r = None  # if we get here someone probably ran the bookmarklet from firefox or the like
         return r
 
@@ -478,7 +471,7 @@ class HypothesisUtils:
 
             search_after = rows[-1][sort_by]
             params['search_after'] = search_after
-            print('searching after', search_after)
+            log.info(f'searching after {search_after}')
 
     def search_url(self, **params):
         return self.search_url_template.format(query=urlencode(params, True).replace('=','%3A'))  # = > :
@@ -762,7 +755,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     def byTags(cls, *tags):
         if cls._done_loading:  # TODO maybe better than done loading is 'consistent'?
             if not cls._tagIndex:
-                printD('populating tags')
+                log.debug('populating tags')
                 # FIXME extremely inefficient on update
                 # and we want this to update as replies appear
                 # not all at once...
@@ -771,7 +764,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
             return sorted(set.intersection(*(cls._tagIndex[tag] for tag in tags)))
         else:
-            hyp_logger.warning('attempted to search by tags before done loading')
+            log.warning('attempted to search by tags before done loading')
 
     def populateTags(self):
         # FIXME need a way to evict old annos on update
@@ -787,7 +780,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
     def depopulateTags(self):
         """ remove object from the tag index on delete """
-        hyp_logger.debug(f'Removing {self._repr} from {len(self._remove_self_from)} tag sets')
+        log.debug(f'Removing {self._repr} from {len(self._remove_self_from)} tag sets')
         for tag, tset in self._remove_self_from:
             tset.remove(self)  # this should never error if everything is working correctly
             if not tset:  # remove unused tags from the index in depopulate
@@ -831,7 +824,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             # we should not need `if not a.deleted` because a should not be in annos
             cls._annos.update({a.id:a for a in annos})  # FIXME this fails on deletes...
             if len(cls._annos) != len(annos):
-                print(f'WARNING it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
+                log.critical(f'it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
         try:
             self = cls.objects[anno.id]
             if self._updated == anno.updated:
@@ -888,7 +881,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         except KeyError as e:
             #from IPython import embed
             #embed()
-            print(self._tagIndex)
+            log.critical(str(self._tagIndex))
             raise e
 
     # protect the original annotation from modification
@@ -940,7 +933,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                         #print('Orphaned reply', self.shareLink, f"{self.classn}.byId('{self.id}')")
                         self._orphanedReplies.add(self.id)
                     else:
-                        print('Problem in', self.shareLink, f"{self.classn}.byId('{self.id}')")
+                        log.warning(f"Problem in {self.shareLink} {self.classn}.byId('{self.id}')")
                 return None
             else:
                 h = self.__class__(anno, self.annos)
@@ -988,7 +981,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 self._replies[self.id] = set()
             return self._replies[self.id]  # we use self.id here instead of self to avoid recursion on __eq__
         else:
-            print('WARNING: Not done loading annos, you will be missing references!')
+            log.warning('Not done loading annos, you will be missing references!')
             return set()
 
 
