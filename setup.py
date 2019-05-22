@@ -32,7 +32,7 @@ setup(name='hyputils',
           'Programming Language :: Python :: 3.7',
       ],
       keywords='hypothesis hypothes.is web annotation',
-      packages=['hyputils'],
+      packages=['hyputils', 'hyputils.memex'],
       python_requires='>=3.6',
       tests_require=tests_require,
       install_requires=[
