@@ -359,7 +359,7 @@ class HypothesisUtils:
             #print('Request, status code:', r.status_code)  # this causes more errors...
             return {'ERROR':True, 'rows':tuple()}
 
-    def make_annotation_payload_with_target_using_only_text_quote(self, url, prefix, exact, suffix, text, tags):
+    def make_annotation_payload_with_target_using_only_text_quote(self, url, prefix, exact, suffix, text, tags, document):
         """Create JSON payload for API call."""
         if exact is None:
             target = [{'source':url}]
@@ -378,6 +378,8 @@ class HypothesisUtils:
             text = ''
         if tags == None:
             tags = []
+        if document == None:
+            document = {}
         payload = {
             "uri": url,
             "user": 'acct:' + self.username + '@hypothes.is',
@@ -385,18 +387,21 @@ class HypothesisUtils:
             "group": self.group,
             "target": target,
             "tags": tags,
-            "text": text
+            "text": text,
+            "document": document,
         }
         return payload
 
     def create_annotation_with_target_using_only_text_quote(self, url=None, prefix=None,
-               exact=None, suffix=None, text=None, tags=None, tag_prefix=None):
+            exact=None, suffix=None, text=None, tags=None, tag_prefix=None, document=None):
         """Call API with token and payload, create annotation (using only text quote)"""
-        payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact, suffix, text, tags)
+        payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact,
+                                                                                 suffix, text, tags, document)
         try:
             r = self.post_annotation(payload)
         except BaseException as e:
-            log.error(e)
+            log.error(payload)
+            log.exception(e)
             r = None  # if we get here someone probably ran the bookmarklet from firefox or the like
         return r
 
