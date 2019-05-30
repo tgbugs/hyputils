@@ -359,7 +359,8 @@ class HypothesisUtils:
             #print('Request, status code:', r.status_code)  # this causes more errors...
             return {'ERROR':True, 'rows':tuple()}
 
-    def make_annotation_payload_with_target_using_only_text_quote(self, url, prefix, exact, suffix, text, tags, document):
+    def make_annotation_payload_with_target_using_only_text_quote(self, url, prefix, exact, suffix,
+                                                                  text, tags, document, extra):
         """Create JSON payload for API call."""
         if exact is None:
             target = [{'source':url}]
@@ -390,13 +391,18 @@ class HypothesisUtils:
             "text": text,
             "document": document,
         }
+
+        if extra is not None:
+            payload['extra'] = extra
+
         return payload
 
     def create_annotation_with_target_using_only_text_quote(self, url=None, prefix=None,
-            exact=None, suffix=None, text=None, tags=None, tag_prefix=None, document=None):
+            exact=None, suffix=None, text=None, tags=None, tag_prefix=None,
+            document=None, extra=None):
         """Call API with token and payload, create annotation (using only text quote)"""
-        payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact,
-                                                                                 suffix, text, tags, document)
+        payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact, suffix,
+                                                                                 text, tags, document, extra)
         try:
             r = self.post_annotation(payload)
         except BaseException as e:
