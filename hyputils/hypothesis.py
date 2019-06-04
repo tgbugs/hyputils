@@ -58,7 +58,7 @@ def makeSimpleLogger(name, level=logging.INFO):
 
 
 log = makeSimpleLogger('hyputils')
-logd = makeSimpleLogger('hyputils-data')
+logd = log.getChild('data')
 
 if 'CI' not in environ:
     log.debug(' '.join((api_token, username, group)))  # sanity check
