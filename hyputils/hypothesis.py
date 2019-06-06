@@ -16,6 +16,11 @@ except ImportError:
 
 # read environment variables # FIXME not the most modular...
 
+__all__ = ['api_token', 'username', 'group', 'group_to_memfile',
+           'idFromShareLink', 'shareLinkFromId',
+           'AnnoFetcher', 'Memoizer',
+           'HypothesisUtils', 'HypothesisHelper', 'Annotation', 'HypAnnoId']
+
 api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
 username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
@@ -513,14 +518,15 @@ class HypothesisUtils:
         # if you want something e.g. with Async/deferred, don't use this
 
         if pretend:
-            yield from (function(h.get_annotation(id).json()) for id in ids)
+            yield from ((a, function(a)) for id in ids
+                        for a in (self.get_annotation(id).json(),))
 
         else:
             for id in ids:
-                resp = h.get_annotation(id)
+                resp = self.get_annotation(id)
                 blob = resp.json()
                 updated = function(blob)
-                yield h.patch_annotation(id, updated)
+                yield blob, self.patch_annotation(id, updated)
 
 
 class HypAnnoId(str):  # TODO derive from Identifer ...
