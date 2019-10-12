@@ -4,10 +4,12 @@ import os
 from os import environ, chmod
 import json
 import hashlib
+import pathlib
 import logging
-import requests
 from types import GeneratorType
 from collections import Counter, defaultdict
+import appdirs
+import requests
 
 try:
     from urllib.parse import urlencode
@@ -24,8 +26,7 @@ __all__ = ['api_token', 'username', 'group', 'group_to_memfile',
 api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
 username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
-UID = os.getuid()
-
+ucd = appdirs.user_cache_dir()
 
 class JEncode(json.JSONEncoder):
      def default(self, obj):
@@ -39,10 +40,14 @@ class JEncode(json.JSONEncoder):
 
 
 def group_to_memfile(group, post=lambda group_hash:None):
-    m = hashlib.sha256()
-    m.update(group.encode())
-    group_hash = m.hexdigest()
-    memfile = f'/tmp/annos-{UID}-{group_hash}.json'
+    if group != '__world__':
+        m = hashlib.sha256()
+        m.update(group.encode())
+        group_hash = m.hexdigest()
+    else:
+        group_hash = group
+
+    memfile = pathlib.Path(ucd, 'hyputils', f'annos-{group_hash}.json')
     post(group_hash)
     return memfile
 
@@ -142,10 +147,10 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
     def __init__(self, memoization_file=None, api_token=api_token, username=username, group=group):
         super().__init__(api_token=api_token, username=username, group=group)
         if memoization_file is None:
-            if group == '__world__':
-                memoization_file = f'/tmp/annos-{UID}-__world__-{username}.json'
-            else:
-                memoization_file = group_to_memfile(group)
+            memoization_file = group_to_memfile(group)
+        elif not isinstance(memoization_file, pathlib.Path):
+            memoization_file = pathlib.Path(memoization_file)
+
         self.memoization_file = memoization_file
 
     def check_group(self, annos):
@@ -236,8 +241,10 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         if self.memoization_file is not None:
             log.info(f'annos updated, memoizing new version with, {len(annos)} members')
             do_chmod = False
-            if not os.path.exists(self.memoization_file):
+            if not self.memoization_file.exists():
                 do_chmod = True
+                if not self.memoization_file.parent.exists():
+                    self.memoization_file.parent.mkdir()
 
             with open(self.memoization_file, 'wt') as f:
                 lsu = annos[-1].updated if annos else None

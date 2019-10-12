@@ -41,6 +41,7 @@ setup(name='hyputils',
       python_requires='>=3.6',
       tests_require=tests_require,
       install_requires=[
+          'appdirs',
           'certifi',
           'requests',
           'websockets',
