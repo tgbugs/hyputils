@@ -15,6 +15,13 @@ __version__ = find_version('hyputils/__init__.py')
 with open('README.md', 'rt') as f:
     long_description = f.read()
 
+tests_memex_require = ['bleach',
+                       'jsonschema',
+                       'mistune',
+                       'psycopg2',
+                       'python-slugify',
+                       'sqlalchemy',
+                       'webob']
 tests_require = ['factory-boy', 'mock', 'pytest', 'pytest-runner']
 setup(name='hyputils',
       version=__version__,
@@ -47,16 +54,8 @@ setup(name='hyputils',
           'websockets',
       ],
       extras_require={'dev': ['pytest-cov', 'wheel'],
-                      'memex':['bleach',
-                               'python-dateutil',
-                               'jsonschema',
-                               'mistune',
-                               'psycopg2',
-                               'python-slugify',
-                               'sqlalchemy',
-                               'webob',
-                              ],
-                      'test': tests_require,
+                      'memex':['python-dateutil'] + tests_memex_require,
+                      'test': tests_require + tests_memex_require,
                       'zdesk': ['pyyaml', 'zdesk'],
                      },
       entry_points={
