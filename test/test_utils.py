@@ -7,13 +7,15 @@ h = HypothesisUtils(username, api_token, group)
 
 class TestCreateAnno(unittest.TestCase):
     def test_payload(self):
-        kwargs = dict(url='this is a url i swear',
-                  prefix='some prefix text',
-                  exact='my exact text',
-                  suffix='some suffix text',
-                  text='angry words being written about the exact text',
-                  tags='TEST:WHYHAVEYOUDONETHIS')
-        args = tuple(kwargs.values())
+        kwargs = (('url', 'this is a url i swear'),
+                  ('prefix', 'some prefix text'),
+                  ('exact', 'my exact text'),
+                  ('suffix', 'some suffix text'),
+                  ('text', 'angry words being written about the exact text'),
+                  ('tags', 'TEST:WHYHAVEYOUDONETHIS'),
+                  ('document', None),
+                  ('extra', None),)
+        args = tuple(b for a, b in kwargs)
         payload = h.make_annotation_payload_with_target_using_only_text_quote(*args)
 
 
