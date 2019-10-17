@@ -22,7 +22,7 @@ tests_memex_require = ['bleach',
                        'python-slugify',
                        'sqlalchemy',
                        'webob']
-tests_require = ['factory-boy', 'mock', 'pytest', 'pytest-runner']
+tests_require = ['factory-boy', 'mock', 'pytest', 'pytest-runner'] + tests_memex_require
 setup(name='hyputils',
       version=__version__,
       description='Python utilities for the Hypothes.is REST api and websocket interface',
@@ -55,7 +55,7 @@ setup(name='hyputils',
       ],
       extras_require={'dev': ['pytest-cov', 'wheel'],
                       'memex':['python-dateutil'] + tests_memex_require,
-                      'test': tests_require + tests_memex_require,
+                      'test': tests_require,
                       'zdesk': ['pyyaml', 'zdesk'],
                      },
       entry_points={
