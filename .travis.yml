@@ -31,7 +31,7 @@ before_script:
   - createdb htest
 
 script:
-  - pipenv run pytest
+  - pipenv run pytest --cov=hyputils
 
 after_success:
-  - if [[ $HAS_COVERALLS ]] ; then coveralls ; fi
+  - if [[ $HAS_COVERALLS && TRAVIS_PYTHON_VERSION == 3.7 ]] ; then coveralls ; fi
