@@ -13,6 +13,7 @@ branches:
 
 python:
   - 3.6
+  - 3.7
 
 addons:
   postgresql: "9.6"
@@ -30,7 +31,7 @@ before_script:
   - createdb htest
 
 script:
-  - PYTHONWARNINGS=ignore pipenv run pytest --verbose --cov=hyputils
+  - pipenv run pytest
 
 after_success:
   - if [[ $HAS_COVERALLS ]] ; then coveralls ; fi
