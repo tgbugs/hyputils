@@ -55,6 +55,9 @@ def group_to_memfile(group, post=lambda group_hash:None):
 def makeSimpleLogger(name, level=logging.INFO):
     # TODO use extra ...
     logger = logging.getLogger(name)
+    if logger.handlers:  # prevent multiple handlers
+        return logger
+
     logger.setLevel(level)
     ch = logging.StreamHandler()  # FileHander goes to disk
     fmt = ('[%(asctime)s] - %(levelname)8s - '
@@ -994,13 +997,50 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             elif prefix and norm_ouri.startswith(norm_iri):
                 yield obj
 
+    @classmethod
+    def reset(cls):
+        """ explicitly reset the class state removing _annos_list and _annos
+            normally this should be called before the first time a program
+            populates annotations so that any persistent state from another
+            program is removed unfriendly if they need to coexist, but for that
+            to actually work this whole thing needs a rewrite to have explicit
+            representation of annotation groups """
+
+        cls.objects = {}
+        cls._tagIndex = {}
+        cls._replies = {}
+        cls.reprReplies = True
+        cls._embedded = False
+        cls._done_loading = False
+        #HypothesisHelper._annos = {}  # DO NOT RESET THIS
+        # the risk of staleness is worth it since we have
+        # already worked through most of the possible issues
+        # around things going stale for that
+        # FIXME yes, yet another reason to switch to explicit
+        # representation of in memory annotation stores
+
+        for a in ('_annos_list',):
+            if hasattr(cls, a):
+                delattr(cls, a)
+
     def __new__(cls, anno, annos):
         if not hasattr(cls, '_annos_list'):
             cls._annos_list = annos
         elif cls._annos_list is not annos:  # FIXME STOP implement a real annos (SyncList) class FFS
-            for a in annos:
-                if a not in cls._annos_list:
-                    cls._annos_list.append(a)
+            # hack to fix O(n ** 2) behavior or worse behavior
+            # when readding the same set of annos over and over
+            # I'm pretty sure that there is pathalogical behavior
+            # hiding here because of the expectation that cls._annos_list is annos
+            # for sync purposes ... sigh bad design coming back to haunt me again
+            # having subclasses of HypothesisHelper act as singletons seems like
+            # a good idea but eventually it will bite you
+            sal = set(cls._annos_list)
+            sa = set(annos)
+            added = sa - sal
+            removed = sal - sa
+            new = [a for a in annos if a in added]
+            cls._annos_list.extend(new)
+
             annos = cls._annos_list
 
         if hasattr(anno, 'deleted'):
