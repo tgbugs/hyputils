@@ -142,13 +142,14 @@ class AnnoFetcher:
                                     stop_at=stop_at)]
 
 
-class Memoizer(AnnoFetcher):  # TODO just use a database ...
+class AnnoReader:
 
     class GroupMismatchError(Exception):
         pass
 
-    def __init__(self, memoization_file=None, api_token=api_token, username=username, group=group):
-        super().__init__(api_token=api_token, username=username, group=group)
+    def __init__(self, memoization_file, group, *args, **kwargs):
+        super().__init__(*args, group=group, **kwargs)
+        self.group = group
         if memoization_file is None:
             memoization_file = group_to_memfile(group)
         elif not isinstance(memoization_file, pathlib.Path):
@@ -156,11 +157,12 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
 
         self.memoization_file = memoization_file
 
-    def check_group(self, annos):
-        if annos:
-            group = annos[0].group
-            if self.group != group:
-                raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
+    def __call__(self):
+        return self.get_annos()
+
+    def get_annos(self):
+        annos, last_sync_updated = self.get_annos_from_file()
+        return annos
 
     def get_annos_from_file(self):
         jblobs = []
@@ -186,6 +188,21 @@ class Memoizer(AnnoFetcher):  # TODO just use a database ...
         annos = [HypothesisAnnotation(jb) for jb in jblobs]
         self.check_group(annos)
         return annos, last_sync_updated
+
+    def check_group(self, annos):
+        if annos:
+            group = annos[0].group
+            if self.group != group:
+                raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
+
+
+class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
+
+    def __init__(self, memoization_file=None, api_token=api_token, username=username, group=group):
+        super().__init__(memoization_file=memoization_file,
+                         api_token=api_token,
+                         username=username,
+                         group=group)
 
     def add_missing_annos(self, annos, last_sync_updated):
         self.check_group(annos)
