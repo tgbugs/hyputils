@@ -28,6 +28,7 @@ username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
 ucd = appdirs.user_cache_dir()
 
+
 class JEncode(json.JSONEncoder):
      def default(self, obj):
          if isinstance(obj, tuple):
@@ -98,8 +99,11 @@ class NotOkError(Exception):
 
 
 class AnnoFetcher:
+
     lsu_default = '1900-01-01T00:00:00.000000+00:00'  # don't need, None is ok
-    def __init__(self, api_token=api_token, username=username, group=group):
+
+    def __init__(self, api_token=api_token, username=username, group=group,
+                 **kwargs):
         if api_token == 'TOKEN':
             log.warning('\x1b[31mWARNING:\x1b[0m NO API TOKEN HAS BEEN SET!')
         self.api_token = api_token
@@ -148,7 +152,6 @@ class AnnoReader:
         pass
 
     def __init__(self, memoization_file, group, *args, **kwargs):
-        super().__init__(*args, group=group, **kwargs)
         self.group = group
         if memoization_file is None:
             memoization_file = group_to_memfile(group)
@@ -198,11 +201,20 @@ class AnnoReader:
 
 class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
-    def __init__(self, memoization_file=None, api_token=api_token, username=username, group=group):
-        super().__init__(memoization_file=memoization_file,
-                         api_token=api_token,
-                         username=username,
-                         group=group)
+    def __init__(self, memoization_file=None,
+                 api_token=api_token,
+                 username=username
+                 group=group):
+        # SIGH
+        AnnoReader.__init__(self,
+            memoization_file=memoization_file,
+            group=group)
+
+        AnnoFetcher.__init__(self,
+            memoization_file=memoization_file,
+            api_token=api_token,
+            username=username,
+            group=group)
 
     def add_missing_annos(self, annos, last_sync_updated):
         self.check_group(annos)
