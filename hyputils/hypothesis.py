@@ -203,7 +203,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
     def __init__(self, memoization_file=None,
                  api_token=api_token,
-                 username=username
+                 username=username,
                  group=group):
         # SIGH
         AnnoReader.__init__(self,
