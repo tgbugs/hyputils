@@ -7,6 +7,7 @@ import shutil
 import hashlib
 import pathlib
 import logging
+from time import sleep
 from types import GeneratorType
 from collections import Counter, defaultdict
 import appdirs
@@ -115,10 +116,16 @@ class AnnoFetcher:
         return self.get_annos()
 
     def h(self):
-        return HypothesisUtils(username=self.username, token=self.api_token, group=self.group)
+        return HypothesisUtils(username=self.username,
+                               token=self.api_token,
+                               group=self.group)
 
-    def yield_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
-        # use stop before if you want to be evil and hit the api in parallel
+    def yield_from_api(self,
+                       search_after=None,
+                       limit=None,
+                       max_results=None,
+                       stop_at=None):
+        # use stop at if you want to be evil and hit the api in parallel
         log.info(f'fetching after {search_after}')
         # hard code these to simplify assumptions
         order = 'asc'
@@ -138,8 +145,11 @@ class AnnoFetcher:
         for row in h.search_all(params, max_results=max_results, stop_at=stop_at):
             yield row
 
-    def get_annos_from_api(self, search_after=None, limit=None, max_results=None, stop_at=None):
-        # FIXME batch the memoization of these?
+    def get_annos_from_api(self,
+                           search_after=None,
+                           limit=None,
+                           max_results=None,
+                           stop_at=None):
         return [HypothesisAnnotation(r) for r in
                 self.yield_from_api(search_after=search_after,
                                     limit=limit,
@@ -178,10 +188,13 @@ class AnnoReader:
             try:
                 with open(file, 'rt') as f:
                     jblobs_lsu = json.load(f)
+
+                try:
                     jblobs, last_sync_updated = jblobs_lsu
-                    if isinstance(last_sync_updated, HypothesisAnnotation):
-                        jblobs = jblobs_lsu
-                        last_sync_updated = last_sync_updated['updated']
+                except ValueError:
+                    jblobs = jblobs_lsu
+                    last_sync_updated = jblobs[-1]['updated']
+
                 if jblobs is None:
                     raise ValueError('wat')
             except json.decoder.JSONDecodeError:
@@ -200,7 +213,8 @@ class AnnoReader:
         if annos:
             group = annos[0].group
             if self.group != group:
-                raise self.GroupMismatchError(f'Groups do not match! {self.group} {group}')
+                msg = f'Groups do not match! {self.group} {group}'
+                raise self.GroupMismatchError(msg)
 
 
 class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
@@ -220,46 +234,24 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             username=username,
             group=group)
 
-        self._lock_folder = self.memoization_file.parent / ('.lock-' + self.memoization_file.stem)
+        lock_name = '.lock-' + self.memoization_file.stem
+        self._lock_folder = self.memoization_file.parent / lock_name
 
-    def add_missing_annos(self, annos, last_sync_updated):
+    def add_missing_annos(self, annos, last_sync_updated):  # XXX deprecated
+        """ this modifies annos in place """
         self.check_group(annos)
         search_after = last_sync_updated
-        # start from last_sync_updated because we assume that the websocket is unreliable
-        new_annos = self.get_annos_from_api(search_after)  # FIXME batch these
-        if not new_annos:
-            return annos
-        merged = annos + new_annos
-        merged_unique = sorted(set(merged), key=lambda a: a.updated)
-        dupes = [sorted([a for a in merged_unique if a.id == id], key=lambda a: a.updated)
-                 for id, count in Counter(anno.id for anno in merged_unique).most_common()
-                 if count > 1]
+        # start from last_sync_updated since the websocket is unreliable
+        new_annos = self._stream_annos_from_api(annos, search_after)
+        return annos
 
-        will_stay = [dupe[-1] for dupe in dupes]
-        to_remove = [a for dupe in dupes for a in dupe[:-1]]
-
-        la = len(annos)
-        ld = len(dupes)
-        lm = len(merged)
-        lmu = len(merged_unique)
-        [merged_unique.remove(d) for d in to_remove]  # FIXME in the db context these need to be updates
-        lmuc = len(merged_unique)
-
-        log.info(f'added {lmuc - la} new annotations')
-        log.info(f'updated {ld} annotations')
-
-        if la != lmuc or dupes:
-            self.memoize_annos(merged_unique)
-
-        return merged_unique
-
-    def update_annos_from_api(self, annos, helpers=tuple()):
+    def __old_update_annos_from_api(self, annos, helpers=tuple()):
         """ Assumes these are ordered by updated """
         # FIXME why aren't we just getting the group from the annos??
         self.check_group(annos)
         last_sync_updated = annos[-1].updated
         search_after = last_sync_updated
-        # start from last_sync_updated because we assume that the websocket is unreliable
+        # start from last_sync_updated since the websocket is unreliable
         new_annos = self.get_annos_from_api(search_after)
         if new_annos:
             new_ids = set(a.id for a in new_annos)
@@ -274,13 +266,126 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
                 for Helper in helpers:
                     Helper(anno, annos)
 
+    def update_annos_from_api(self,
+                              annos,
+                              helpers=tuple(),
+                              start_after=None,
+                              stop_at=None,
+                              batch_size=2000):
+        self.check_group(annos)
+        if annos:
+            if start_after is not None:
+                raise TypeError('cannot have both non-empty annos and '
+                                'not None start_after at the same time')
+            last_sync_updated = annos[-1].updated
+            search_after = last_sync_updated
+
+        new_annos = self._stream_annos_from_api(annos,
+                                                search_after,
+                                                stop_at,
+                                                batch_size,
+                                                helpers)
+
+        for anno in new_annos:
+            for Helper in helpers:
+                Helper(anno, annos)
+
+        return new_annos
+
+    def _stream_annos_from_api(self, annos, search_after, stop_at=None, batch_size=2000, helpers=tuple()):
+        # BUT FIRST check to make sure that no one else is in the middle of fetching into our anno file
+        # YES THIS USES A LOCK FILE, SIGH
+        can_update = not self._lock_folder.exists()
+        if can_update:
+            # TODO in a multiprocess context streaming anno updates
+            # is a nightmare, even in this context if we call get_annos
+            # more than once there is a risk that only some processes
+            # will get the new annos, though I guess that is ok
+            # in the sense that they will go look for new annos starting
+            # wherever they happen to be and will double pull any annos
+            # that were previously pulled by another process in addition
+            # to any annoations that happend after the other process pulled
+            # the only inconsistency would be if an annoation was deleted
+            # since we already deal with the update case
+            new_annos = self._can_update(annos, search_after, stop_at, batch_size)
+        else:
+            new_annos = self._cannot_update(annos)
+
+        return new_annos
+
+    def _can_update(self, annos, search_after, stop_at, batch_size):
+        """ only call this if we can update"""
+        try:
+            self._lock_folder.mkdir()
+            gen = self.yield_from_api(search_after=search_after,
+                                      stop_at=stop_at)
+            try:
+                while True:
+                    first = [next(gen)]  # stop iteration will happen here breaking the loop
+                    batch = first + [anno for i, anno in zip(range(batch_size - 1), gen)]
+                    lsu = batch[-1]['updated']
+                    file = self._lock_folder / lsu  # FIXME windows
+                    with open(file, 'wt') as f:
+                        json.dump(batch, f)
+            except StopIteration:
+                pass
+
+        except:
+            raise
+        else:  # I think this is the first time I've ever had to use this
+            new_annos = self._lock_folder_to_json(annos)
+            return new_annos
+        finally:
+            try:
+                # if mkdir fails this will also fail but that is ok
+                # because the whole point of this section is to make
+                # sure that the lock folder does not exist when we
+                # return from this method
+                shutil.rmtree(self._lock_folder)
+            finally:
+                if self._lock_folder.exists():
+                    name = 'OH-NO-' + self._lock_folder.name  # FIXME needs to be unique
+                    target = self._lock_folder.parent / name
+                    self._lock_folder.rename(target)
+
+    def _cannot_update(self, annos):
+        # we have to block here until the annos are updated and the
+        # lock folder is removed so we can extend the current annos
+        while True:
+            sleep(1)  # sigh
+            if not self._lock_folder.exists():
+                break
+
+        all_annos, lsu = self.get_annos_from_file()
+        # this approach is safter than direct comparison of all_annos and annos
+        # because it makes it possible to detect duplicates from updates
+        new_annos = [a for a in all_annos if a.updated > lsu]
+        self._merge_new_annos(annos, new_annos)
+        # we don't need to memoize here
+        return new_annos
+
+    def _lock_folder_to_json(self, annos):
+        new_annos = []
+        for jpath in sorted(self._lock_folder.iterdir()):
+            more_annos, last_sync_updated = self.get_annos_from_file(jpath)
+            new_annos.extend(more_annos)
+
+        self._merge_new_annos(annos, new_annos)
+        self.memoize_annos(annos)
+        return new_annos
+
     def _merge_new_annos(self, annos, new_annos):
         new_ids = set(a.id for a in new_annos)
-        for anno in tuple(annos):  # FIXME memory and perf issues?
+        n_updated = 0
+        for anno in tuple(annos):
             if anno.id in new_ids:
-                annos.remove(anno)
+                annos.remove(anno)  # FIXME stale data in helper data structures
+                n_updated += 1
 
         annos.extend(new_annos)
+        log.info(f'added {len(new_annos) - n_updated} new annotations')
+        if n_updated:
+            log.info(f'updated {n_updated} annotations')
 
     def memoize_annos(self, annos):
         # FIXME if there are multiple ws listeners we will have race conditions?
@@ -303,94 +408,14 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
         else:
             log.info(f'No memoization file, not saving.')
 
-    def _lock_folder_to_json(self, annos):
-        new_annos = []
-        for jpath in sorted(self._lock_folder.iterdir()):
-            more_annos, last_sync_updated = self.get_annos_from_file(jpath)
-            new_annos.extend(more_annos)
-
-        self._merge_new_annos(annos, new_annos)
-        self.memoize_annos(annos)
-
-    def update_annos_from_api(self, annos, helpers=tuple(), start_after=None, stop_at=None, batch_size=2000):
-        self.check_group(annos)
-        if annos:
-            if start_after is not None:
-                raise TypeError('cannot have both non-empty annos and '
-                                'not None start_after at the same time')
-            last_sync_updated = annos[-1].updated
-            search_after = last_sync_updated
-
-        self._stream_annos_from_api(annos, search_after, stop_at, batch_size)
-
-    def _stream_annos_from_api(self, annos, search_after, stop_at=None, batch_size=2000):
-        # BUT FIRST check to make sure that no one else is in the middle of fetching into our anno file
-        # YES THIS USES A LOCK FILE, SIGH
-        can_update = not self._lock_folder.exists()
-        if can_update:
-            # TODO in a multiprocess context streaming anno updates
-            # is a nightmare, even in this context if we call get_annos
-            # more than once there is a risk that only some processes
-            # will get the new annos, though I guess that is ok
-            # in the sense that they will go look for new annos starting
-            # wherever they happen to be and will double pull any annos
-            # that were previously pulled by another process in addition
-            # to any annoations that happend after the other process pulled
-            # the only inconsistency would be if an annoation was deleted
-            # since we already deal with the update case
-            self._can_update(annos, search_after, stop_at, batch_size)
-        else:
-            self._cannot_update(annos)
-
-    def _can_update(self, annos, search_afer, stop_at, batch_size):
-        """ only call this if we can update"""
-        try:
-            self._lock_folder.mkdir()
-            gen = self.yield_from_api(search_after=search_after,
-                                      stop_at=stop_at)
-            try:
-                while True:
-                    first = [next(gen)]  # stop iteration will happen here breaking the loop
-                    batch = first + [anno for i, anno in zip(range(batch_size - 1), gen)]
-                    lsu = batch[-1][updated]
-                    file = self._lock_folder / lsu  # FIXME windows
-                    with open(file, 'wt') as f:
-                        json.dump(f)
-            except StopIteration:
-                pass
-
-        finally:
-            try:
-                self._lock_folder_to_json(annos)
-                shutil.rmtree(self._lock_folder)
-            finally:
-                if self._lock_folder.exists():
-                    name = self._lock_folder.name + 'OHNO'  # FIXME needs to be unique
-                    target = self._lock_folder.parent / name
-                    self._lock_folder.rename(target)
-
-    def _cannot_update(self, annos):
-        # we have to block here until the annos are updated and the
-        # lock folder is removed so we can extend the current annos
-        while True:
-            sleep(1)  # sigh
-            if not self._lock_folder.exists():
-                break
-
-        all_annos = self.get_annos_from_file()
-        lsu = annos[-1].updated
-        new_annos = [a for a in all_annos if a.updated > lsu]
-        self._merge_new_annos(annos, new_annos)
-        # we don't need to memoize here
-
     def get_annos(self):
         annos, last_sync_updated = self.get_annos_from_file()
         if not annos:
-            new_annos = self.get_annos_from_api()
-            self.memoize_annos(new_annos)
-            return new_annos
+            new_annos = self._stream_annos_from_api(annos, last_sync_updated)
         else:
-            return self.add_missing_annos(annos, last_sync_updated)
+            new_annos = self._stream_annos_from_api(annos, last_sync_updated)
+
+        return annos
 
     def add_anno(self, anno, annos):
         annos.append(anno)
