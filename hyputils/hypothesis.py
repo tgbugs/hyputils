@@ -292,9 +292,13 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             # to any annoations that happend after the other process pulled
             # the only inconsistency would be if an annoation was deleted
             # since we already deal with the update case
+            self._lock_folder.mkdir()
             new_annos = self._can_update(annos, search_after, stop_at, batch_size)
         elif self._locking_process_dead():
-            self._unlock_pid()
+            if self._lock_pid_file.exists():
+                # folder might exist by itself with no lock-pid file
+                self._unlock_pid()
+
             new_annos = self._can_update(annos, search_after, stop_at, batch_size)
         else:
             new_annos = self._cannot_update(annos)
@@ -303,8 +307,8 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
     def _can_update(self, annos, search_after, stop_at, batch_size):
         """ only call this if we can update"""
+        do_finally = True  # SIGH
         try:
-            self._lock_folder.mkdir()
             self._write_lock_pid()
             gen = self.yield_from_api(search_after=search_after,
                                       stop_at=stop_at)
@@ -320,28 +324,33 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             except StopIteration:
                 pass
 
+        except FileExistsError:
+            # some other thread beat us to the punch
+            do_finally = False  # SIGH
+            raise
         except:
             raise
         else:  # I think this is the first time I've ever had to use this
             new_annos = self._lock_folder_to_json(annos)
             return new_annos
         finally:
-            try:
-                # if mkdir fails this will also fail but that is ok
-                # because the whole point of this section is to make
-                # sure that the lock folder does not exist when we
-                # return from this method
-                shutil.rmtree(self._lock_folder)
-                if self._lock_pid_file.exists():
-                    self._unlock_pid()
-            finally:
-                if self._lock_folder.exists():
-                    name = 'OH-NO-' + self._lock_folder.name  # FIXME not unique
-                    target = self._lock_folder.parent / name
-                    self._lock_folder.rename(target)
+            if do_finally:  # SIGH
+                try:
+                    # if mkdir fails this will also fail but that is ok
+                    # because the whole point of this section is to make
+                    # sure that the lock folder does not exist when we
+                    # return from this method
+                    shutil.rmtree(self._lock_folder)
+                    if self._lock_pid_file.exists():
+                        self._unlock_pid()
+                finally:
+                    if self._lock_folder.exists():
+                        name = 'OH-NO-' + self._lock_folder.name  # FIXME not unique
+                        target = self._lock_folder.parent / name
+                        self._lock_folder.rename(target)
 
-                if self._lock_pid_file.exists():
-                    self._unlock_pid()
+                    if self._lock_pid_file.exists():
+                        self._unlock_pid()
 
     def _cannot_update(self, annos):
         # we have to block here until the annos are updated and the
@@ -398,7 +407,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             return True
 
         if not psutil.pid_exists(pid):
-            return False
+            return True
 
         p = psutil.Process(pid)
         return p._create_time != create_time
