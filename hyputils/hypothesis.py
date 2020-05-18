@@ -377,20 +377,24 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
         if self.memoization_file is not None:
             msg = ('annos updated, memoizing new version with, '
                    f'{len(annos)} members')
-            log.info()
+            log.info(msg)
             do_chmod = False
             if not self.memoization_file.exists():
                 do_chmod = True
                 if not self.memoization_file.parent.exists():
                     self.memoization_file.parent.mkdir()
 
+            if do_chmod:
+                # always touch and chmod before writing
+                # so that there is no time at which a file
+                # with data can exist with the wrong permission
+                self.memoization_file.touch()
+                self.memoization_file.chmod(0o600)
+
             with open(self.memoization_file, 'wt') as f:
                 lsu = annos[-1].updated if annos else None
                 alsu = annos, lsu
                 json.dump(alsu, f, cls=JEncode)
-
-            if do_chmod:
-                chmod(self.memoization_file, 0o600)
 
         else:
             log.info(f'No memoization file, not saving.')
