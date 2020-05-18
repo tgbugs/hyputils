@@ -50,6 +50,7 @@ setup(name='hyputils',
       install_requires=[
           'appdirs',
           'certifi',
+          'psutil',
           'requests',
           'websockets',
       ],

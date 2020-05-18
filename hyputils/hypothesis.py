@@ -10,6 +10,7 @@ import logging
 from time import sleep
 from types import GeneratorType
 from collections import Counter, defaultdict
+import psutil  # sigh
 import appdirs
 import requests
 
@@ -292,6 +293,9 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             # the only inconsistency would be if an annoation was deleted
             # since we already deal with the update case
             new_annos = self._can_update(annos, search_after, stop_at, batch_size)
+        elif self._locking_process_dead():
+            self._unlock_pid()
+            new_annos = self._can_update(annos, search_after, stop_at, batch_size)
         else:
             new_annos = self._cannot_update(annos)
 
@@ -301,6 +305,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
         """ only call this if we can update"""
         try:
             self._lock_folder.mkdir()
+            self._write_lock_pid()
             gen = self.yield_from_api(search_after=search_after,
                                       stop_at=stop_at)
             try:
@@ -327,17 +332,26 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
                 # sure that the lock folder does not exist when we
                 # return from this method
                 shutil.rmtree(self._lock_folder)
+                if self._lock_pid_file.exists():
+                    self._unlock_pid()
             finally:
                 if self._lock_folder.exists():
                     name = 'OH-NO-' + self._lock_folder.name  # FIXME not unique
                     target = self._lock_folder.parent / name
                     self._lock_folder.rename(target)
 
+                if self._lock_pid_file.exists():
+                    self._unlock_pid()
+
     def _cannot_update(self, annos):
         # we have to block here until the annos are updated and the
         # lock folder is removed so we can extend the current annos
         while True:
             sleep(1)  # sigh
+            # FIXME in theory this wait could
+            # lead to some workers never waking up
+            # if calls to update from other workers
+            # happen frequently enough
             if not self._lock_folder.exists():
                 break
 
@@ -348,6 +362,49 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
         self._merge_new_annos(annos, new_annos)
         # we don't need to memoize here
         return new_annos
+
+
+    @property
+    def _lock_pid_file(self):
+        return self._lock_folder.parent / 'lock-pid'
+
+    def _write_lock_pid(self):
+        if self._lock_pid_file.exists():
+            raise FileExistsError(self._lock_pid_file)
+
+        p = psutil.Process()
+        data = f'{p.pid},{p._create_time}'
+
+        with open(self._lock_pid_file, 'wt') as f:
+            f.write(data)
+
+    @property
+    def _lock_pidinfo(self):
+        if self._lock_pid_file.exists():
+            with open(self._lock_pid_file, 'rt') as f:
+                data = f.read()
+                spid, screate_time = data.split(',')
+                pid = int(spid)
+                create_time = float(screate_time)
+                return pid, create_time
+        else:
+            return None, None
+
+    def _locking_process_dead(self):
+        pid, create_time = self._lock_pidinfo()
+        if pid is None:
+            # pidinfo file doesn't exist so the lock folder
+            # is not handled by us
+            return True
+
+        if not psutil.pid_exists(pid):
+            return False
+
+        p = psutil.Process(pid)
+        return p._create_time != create_time
+
+    def _unlock_pid(self):
+        self._lock_pid_file.unlink()
 
     def _lock_folder_to_json(self, annos):
         new_annos = []
