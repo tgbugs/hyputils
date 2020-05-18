@@ -245,27 +245,6 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
         new_annos = self._stream_annos_from_api(annos, search_after)
         return annos
 
-    def __old_update_annos_from_api(self, annos, helpers=tuple()):
-        """ Assumes these are ordered by updated """
-        # FIXME why aren't we just getting the group from the annos??
-        self.check_group(annos)
-        last_sync_updated = annos[-1].updated
-        search_after = last_sync_updated
-        # start from last_sync_updated since the websocket is unreliable
-        new_annos = self.get_annos_from_api(search_after)
-        if new_annos:
-            new_ids = set(a.id for a in new_annos)
-            for anno in tuple(annos):  # FIXME memory and perf issues?
-                if anno.id in new_ids:
-                    annos.remove(anno)
-
-            annos.extend(new_annos)
-            # TODO deal with updates
-            self.memoize_annos(annos)
-            for anno in new_annos:
-                for Helper in helpers:
-                    Helper(anno, annos)
-
     def update_annos_from_api(self,
                               annos,
                               helpers=tuple(),
@@ -292,7 +271,12 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
         return new_annos
 
-    def _stream_annos_from_api(self, annos, search_after, stop_at=None, batch_size=2000, helpers=tuple()):
+    def _stream_annos_from_api(self,
+                               annos,
+                               search_after,
+                               stop_at=None,
+                               batch_size=2000,
+                               helpers=tuple()):
         # BUT FIRST check to make sure that no one else is in the middle of fetching into our anno file
         # YES THIS USES A LOCK FILE, SIGH
         can_update = not self._lock_folder.exists()
@@ -321,8 +305,9 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
                                       stop_at=stop_at)
             try:
                 while True:
-                    first = [next(gen)]  # stop iteration will happen here breaking the loop
-                    batch = first + [anno for i, anno in zip(range(batch_size - 1), gen)]
+                    first = [next(gen)]  # stop iteration breaks the loop
+                    rest = [anno for i, anno in zip(range(batch_size - 1), gen)]
+                    batch = first + rest
                     lsu = batch[-1]['updated']
                     file = self._lock_folder / lsu  # FIXME windows
                     with open(file, 'wt') as f:
@@ -344,7 +329,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
                 shutil.rmtree(self._lock_folder)
             finally:
                 if self._lock_folder.exists():
-                    name = 'OH-NO-' + self._lock_folder.name  # FIXME needs to be unique
+                    name = 'OH-NO-' + self._lock_folder.name  # FIXME not unique
                     target = self._lock_folder.parent / name
                     self._lock_folder.rename(target)
 
@@ -390,7 +375,9 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
     def memoize_annos(self, annos):
         # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
-            log.info(f'annos updated, memoizing new version with, {len(annos)} members')
+            msg = ('annos updated, memoizing new version with, '
+                   f'{len(annos)} members')
+            log.info()
             do_chmod = False
             if not self.memoization_file.exists():
                 do_chmod = True
@@ -500,7 +487,8 @@ class HypothesisUtils:
 
     def authenticated_api_query(self, query_url=None):
         try:
-            headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8'}
+            headers = {'Authorization': 'Bearer ' + self.token,
+                       'Content-Type': 'application/json;charset=utf-8'}
             r = requests.get(query_url, headers=headers)
             obj = r.json()
             if r.ok:
@@ -522,8 +510,8 @@ class HypothesisUtils:
             #print('Request, status code:', r.status_code)  # this causes more errors...
             return {'ERROR':True, 'rows':tuple()}
 
-    def make_annotation_payload_with_target_using_only_text_quote(self, url, prefix, exact, suffix,
-                                                                  text, tags, document, extra):
+    def make_annotation_payload_with_target_using_only_text_quote(
+            self, url, prefix, exact, suffix, text, tags, document, extra):
         """Create JSON payload for API call."""
         if exact is None:
             target = [{'source':url}]
@@ -560,45 +548,56 @@ class HypothesisUtils:
 
         return payload
 
-    def create_annotation_with_target_using_only_text_quote(self, url=None, prefix=None,
-            exact=None, suffix=None, text=None, tags=None, tag_prefix=None,
-            document=None, extra=None):
+    def create_annotation_with_target_using_only_text_quote(
+            self, url=None, prefix=None, exact=None, suffix=None, text=None,
+            tags=None, tag_prefix=None, document=None, extra=None):
         """Call API with token and payload, create annotation (using only text quote)"""
-        payload = self.make_annotation_payload_with_target_using_only_text_quote(url, prefix, exact, suffix,
-                                                                                 text, tags, document, extra)
+        payload = self.make_annotation_payload_with_target_using_only_text_quote(
+            url, prefix, exact, suffix, text, tags, document, extra)
         try:
             r = self.post_annotation(payload)
         except BaseException as e:
             log.error(payload)
             log.exception(e)
-            r = None  # if we get here someone probably ran the bookmarklet from firefox or the like
+            # if we get here someone probably ran the
+            # bookmarklet from firefox or the like
+            r = None
         return r
 
     def head_annotation(self, id):
         # used as a 'kind' way to look for deleted annotations
-        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        headers = {'Authorization': 'Bearer ' + self.token,
+                   'Content-Type': 'application/json;charset=utf-8' }
         r = requests.head(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def get_annotation(self, id):
-        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        headers = {'Authorization': 'Bearer ' + self.token,
+                   'Content-Type': 'application/json;charset=utf-8' }
         r = requests.get(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def post_annotation(self, payload):
-        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        headers = {'Authorization': 'Bearer ' + self.token,
+                   'Content-Type': 'application/json;charset=utf-8' }
         data = json.dumps(payload, ensure_ascii=False)
-        r = requests.post(self.api_url + '/annotations', headers=headers, data=data.encode('utf-8'))
+        r = requests.post(self.api_url + '/annotations',
+                          headers=headers,
+                          data=data.encode('utf-8'))
         return r
 
     def patch_annotation(self, id, payload):
-        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        headers = {'Authorization': 'Bearer ' + self.token,
+                   'Content-Type': 'application/json;charset=utf-8' }
         data = json.dumps(payload, ensure_ascii=False)
-        r = requests.patch(self.api_url + '/annotations/' + id, headers=headers, data=data.encode('utf-8'))
+        r = requests.patch(self.api_url + '/annotations/' + id,
+                           headers=headers,
+                           data=data.encode('utf-8'))
         return r
 
     def delete_annotation(self, id):
-        headers = {'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json;charset=utf-8' }
+        headers = {'Authorization': 'Bearer ' + self.token,
+                   'Content-Type': 'application/json;charset=utf-8' }
         r = requests.delete(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
@@ -653,7 +652,10 @@ class HypothesisUtils:
             log.info(f'searching after {search_after}')
 
     def search_url(self, **params):
-        return self.search_url_template.format(query=urlencode(params, True).replace('=','%3A'))  # = > :
+        return (self
+                .search_url_template
+                .format(query=(urlencode(params, True)
+                               .replace('=','%3A'))))  # = > :
 
     def query_url(self, **params):
         return self.query_url_template.format(query=urlencode(params, True))
@@ -918,7 +920,9 @@ class HypothesisAnnotation:
         else:
              uri = "no uri field for %s" % self.id
 
-        uri = uri.replace('https://via.hypothes.is/h/','').replace('https://via.hypothes.is/','')
+        uri = (uri
+               .replace('https://via.hypothes.is/h/','')
+               .replace('https://via.hypothes.is/',''))
 
         if uri.startswith('urn:x-pdf'):
             document = self.document
@@ -1027,7 +1031,10 @@ class HypothesisAnnotation:
 
     def __eq__(self, other):
         # text and tags can change, if exact changes then the id will also change
-        return self.id == other.id and self.text == other.text and set(self.tags) == set(other.tags) and self.updated == other.updated
+        return (self.id == other.id and
+                self.text == other.text and
+                set(self.tags) == set(other.tags) and
+                self.updated == other.updated)
 
     def __hash__(self):
         return hash(self.id + self.text + self.updated)
@@ -1098,7 +1105,9 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         try:
             return next(v for v in cls.objects.values()).getObjectById(id_)
         except StopIteration as e:
-            raise Warning(f'{cls.__name__}.objects has not been populated with annotations yet!') from e
+            msg = (f'{cls.__name__}.objects has not been '
+                   'populated with annotations yet!')
+            raise Warning(msg) from e
 
     @classmethod
     def byTags(cls, *tags):
@@ -1210,7 +1219,9 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             # we should not need `if not a.deleted` because a should not be in annos
             cls._annos.update({a.id:a for a in annos})  # FIXME this fails on deletes...
             if len(cls._annos) != len(annos):
-                logd.critical(f'it seems you have duplicate entries for annos: {len(cls._annos)} != {len(annos)}')
+                msg = ('it seems you have duplicate entries for annos: '
+                       f'{len(cls._annos)} != {len(annos)}')
+                logd.critical(msg)
         try:
             self = cls.objects[anno.id]
             if self._updated == anno.updated:
