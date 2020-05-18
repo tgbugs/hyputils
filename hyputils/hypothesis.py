@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 from os import environ, chmod
 import json
+import shutil
 import hashlib
 import pathlib
 import logging
@@ -167,12 +168,15 @@ class AnnoReader:
         annos, last_sync_updated = self.get_annos_from_file()
         return annos
 
-    def get_annos_from_file(self):
+    def get_annos_from_file(self, file=None):
+        if file is None:
+            file = self.memoization_file
+
         jblobs = []
         last_sync_updated = None
-        if self.memoization_file is not None:
+        if file is not None:
             try:
-                with open(self.memoization_file, 'rt') as f:
+                with open(file, 'rt') as f:
                     jblobs_lsu = json.load(f)
                     jblobs, last_sync_updated = jblobs_lsu
                     if isinstance(last_sync_updated, HypothesisAnnotation):
@@ -181,7 +185,7 @@ class AnnoReader:
                 if jblobs is None:
                     raise ValueError('wat')
             except json.decoder.JSONDecodeError:
-                with open(self.memoization_file, 'rt') as f:
+                with open(file, 'rt') as f:
                     data = f.read()
                 if not data:
                     log.info('memoization file exists but is empty')
@@ -215,6 +219,8 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             api_token=api_token,
             username=username,
             group=group)
+
+        self._lock_folder = self.memoization_file.parent / ('.lock-' + self.memoization_file.stem)
 
     def add_missing_annos(self, annos, last_sync_updated):
         self.check_group(annos)
@@ -268,6 +274,14 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
                 for Helper in helpers:
                     Helper(anno, annos)
 
+    def _merge_new_annos(self, annos, new_annos):
+        new_ids = set(a.id for a in new_annos)
+        for anno in tuple(annos):  # FIXME memory and perf issues?
+            if anno.id in new_ids:
+                annos.remove(anno)
+
+        annos.extend(new_annos)
+
     def memoize_annos(self, annos):
         # FIXME if there are multiple ws listeners we will have race conditions?
         if self.memoization_file is not None:
@@ -288,6 +302,86 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
         else:
             log.info(f'No memoization file, not saving.')
+
+    def _lock_folder_to_json(self, annos):
+        new_annos = []
+        for jpath in sorted(self._lock_folder.iterdir()):
+            more_annos, last_sync_updated = self.get_annos_from_file(jpath)
+            new_annos.extend(more_annos)
+
+        self._merge_new_annos(annos, new_annos)
+        self.memoize_annos(annos)
+
+    def update_annos_from_api(self, annos, helpers=tuple(), start_after=None, stop_at=None, batch_size=2000):
+        self.check_group(annos)
+        if annos:
+            if start_after is not None:
+                raise TypeError('cannot have both non-empty annos and '
+                                'not None start_after at the same time')
+            last_sync_updated = annos[-1].updated
+            search_after = last_sync_updated
+
+        self._stream_annos_from_api(annos, search_after, stop_at, batch_size)
+
+    def _stream_annos_from_api(self, annos, search_after, stop_at=None, batch_size=2000):
+        # BUT FIRST check to make sure that no one else is in the middle of fetching into our anno file
+        # YES THIS USES A LOCK FILE, SIGH
+        can_update = not self._lock_folder.exists()
+        if can_update:
+            # TODO in a multiprocess context streaming anno updates
+            # is a nightmare, even in this context if we call get_annos
+            # more than once there is a risk that only some processes
+            # will get the new annos, though I guess that is ok
+            # in the sense that they will go look for new annos starting
+            # wherever they happen to be and will double pull any annos
+            # that were previously pulled by another process in addition
+            # to any annoations that happend after the other process pulled
+            # the only inconsistency would be if an annoation was deleted
+            # since we already deal with the update case
+            self._can_update(annos, search_after, stop_at, batch_size)
+        else:
+            self._cannot_update(annos)
+
+    def _can_update(self, annos, search_afer, stop_at, batch_size):
+        """ only call this if we can update"""
+        try:
+            self._lock_folder.mkdir()
+            gen = self.yield_from_api(search_after=search_after,
+                                      stop_at=stop_at)
+            try:
+                while True:
+                    first = [next(gen)]  # stop iteration will happen here breaking the loop
+                    batch = first + [anno for i, anno in zip(range(batch_size - 1), gen)]
+                    lsu = batch[-1][updated]
+                    file = self._lock_folder / lsu  # FIXME windows
+                    with open(file, 'wt') as f:
+                        json.dump(f)
+            except StopIteration:
+                pass
+
+        finally:
+            try:
+                self._lock_folder_to_json(annos)
+                shutil.rmtree(self._lock_folder)
+            finally:
+                if self._lock_folder.exists():
+                    name = self._lock_folder.name + 'OHNO'  # FIXME needs to be unique
+                    target = self._lock_folder.parent / name
+                    self._lock_folder.rename(target)
+
+    def _cannot_update(self, annos):
+        # we have to block here until the annos are updated and the
+        # lock folder is removed so we can extend the current annos
+        while True:
+            sleep(1)  # sigh
+            if not self._lock_folder.exists():
+                break
+
+        all_annos = self.get_annos_from_file()
+        lsu = annos[-1].updated
+        new_annos = [a for a in all_annos if a.updated > lsu]
+        self._merge_new_annos(annos, new_annos)
+        # we don't need to memoize here
 
     def get_annos(self):
         annos, last_sync_updated = self.get_annos_from_file()
