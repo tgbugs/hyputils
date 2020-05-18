@@ -391,7 +391,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             return None, None
 
     def _locking_process_dead(self):
-        pid, create_time = self._lock_pidinfo()
+        pid, create_time = self._lock_pidinfo
         if pid is None:
             # pidinfo file doesn't exist so the lock folder
             # is not handled by us
