@@ -465,11 +465,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
     def get_annos(self):
         annos, last_sync_updated = self.get_annos_from_file()
-        if not annos:
-            new_annos = self._stream_annos_from_api(annos, last_sync_updated)
-        else:
-            new_annos = self._stream_annos_from_api(annos, last_sync_updated)
-
+        new_annos = self._stream_annos_from_api(annos, last_sync_updated)
         return annos
 
     def add_anno(self, anno, annos):
