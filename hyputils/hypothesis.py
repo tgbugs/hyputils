@@ -53,6 +53,7 @@ def group_to_memfile(group, post=lambda group_hash:None):
 
     memfile = pathlib.Path(ucd, 'hyputils', f'annos-{group_hash}.json')
     post(group_hash)
+    memfile.parent.mkdir(exist_ok=True, parents=True)  # FIXME remove after orthauth switch
     return memfile
 
 
