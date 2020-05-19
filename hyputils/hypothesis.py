@@ -299,6 +299,11 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
                 # folder might exist by itself with no lock-pid file
                 self._unlock_pid()
 
+            _search_after = self._lock_folder_lsu()
+            search_after = (search_after
+                            if _search_after is None else
+                            _search_after)
+
             new_annos = self._can_update(annos, search_after, stop_at, batch_size)
         else:
             new_annos = self._cannot_update(annos)
@@ -307,7 +312,6 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
     def _can_update(self, annos, search_after, stop_at, batch_size):
         """ only call this if we can update"""
-        do_finally = True  # SIGH
         try:
             self._write_lock_pid()
             gen = self.yield_from_api(search_after=search_after,
@@ -324,33 +328,15 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
             except StopIteration:
                 pass
 
-        except FileExistsError:
-            # some other thread beat us to the punch
-            do_finally = False  # SIGH
-            raise
         except:
             raise
         else:  # I think this is the first time I've ever had to use this
             new_annos = self._lock_folder_to_json(annos)
+            shutil.rmtree(self._lock_folder)
             return new_annos
         finally:
-            if do_finally:  # SIGH
-                try:
-                    # if mkdir fails this will also fail but that is ok
-                    # because the whole point of this section is to make
-                    # sure that the lock folder does not exist when we
-                    # return from this method
-                    shutil.rmtree(self._lock_folder)
-                    if self._lock_pid_file.exists():
-                        self._unlock_pid()
-                finally:
-                    if self._lock_folder.exists():
-                        name = 'OH-NO-' + self._lock_folder.name  # FIXME not unique
-                        target = self._lock_folder.parent / name
-                        self._lock_folder.rename(target)
-
-                    if self._lock_pid_file.exists():
-                        self._unlock_pid()
+            if self._lock_pid_file.exists():
+                self._unlock_pid()
 
     def _cannot_update(self, annos):
         # we have to block here until the annos are updated and the
@@ -415,12 +401,23 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
     def _unlock_pid(self):
         self._lock_pid_file.unlink()
 
-    def _lock_folder_to_json(self, annos):
+    def _lock_folder_lsu(self):
+        paths = sorted(self._lock_folder.iterdir())
+        if paths:
+            last = paths[-1]
+            more_annos, last_sync_updated = self.get_annos_from_file(last)
+            return last_sync_updated
+
+    def _get_annos_from_folder(self):
         new_annos = []
         for jpath in sorted(self._lock_folder.iterdir()):
             more_annos, last_sync_updated = self.get_annos_from_file(jpath)
             new_annos.extend(more_annos)
 
+        return new_annos, last_sync_updated
+
+    def _lock_folder_to_json(self, annos):
+        new_annos, lsu = self._get_annos_from_folder()
         self._merge_new_annos(annos, new_annos)
         self.memoize_annos(annos)
         return new_annos
@@ -575,8 +572,10 @@ class HypothesisUtils:
                 self.ssl_retry = 0
                 log.error(e)
                 return {'ERROR':True, 'rows':tuple()}
+        except KeyboardInterrupt:
+            raise
         except BaseException as e:
-            log.error(e)
+            log.exception(e)
             #print('Request, status code:', r.status_code)  # this causes more errors...
             return {'ERROR':True, 'rows':tuple()}
 
@@ -626,6 +625,8 @@ class HypothesisUtils:
             url, prefix, exact, suffix, text, tags, document, extra)
         try:
             r = self.post_annotation(payload)
+        except KeyboardInterrupt:
+            raise
         except BaseException as e:
             log.error(payload)
             log.exception(e)
