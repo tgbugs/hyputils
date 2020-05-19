@@ -410,6 +410,7 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
     def _get_annos_from_folder(self):
         new_annos = []
+        last_sync_updated = None
         for jpath in sorted(self._lock_folder.iterdir()):
             more_annos, last_sync_updated = self.get_annos_from_file(jpath)
             new_annos.extend(more_annos)
