@@ -420,8 +420,10 @@ class Memoizer(AnnoReader, AnnoFetcher):  # TODO just use a database ...
 
     def _lock_folder_to_json(self, annos):
         new_annos, lsu = self._get_annos_from_folder()
-        self._merge_new_annos(annos, new_annos)
-        self.memoize_annos(annos)
+        if new_annos:
+            self._merge_new_annos(annos, new_annos)
+            self.memoize_annos(annos)
+
         return new_annos
 
     def _merge_new_annos(self, annos, new_annos):
