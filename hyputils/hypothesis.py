@@ -1226,7 +1226,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 yield obj
 
     @classmethod
-    def reset(cls):
+    def reset(cls, reset_annos_dict=False):
         """ explicitly reset the class state removing _annos_list and _annos
             normally this should be called before the first time a program
             populates annotations so that any persistent state from another
@@ -1240,12 +1240,16 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         cls.reprReplies = True
         cls._embedded = False
         cls._done_loading = False
-        #HypothesisHelper._annos = {}  # DO NOT RESET THIS
+        if reset_annos_dict:
+            HypothesisHelper._annos = {}
+            # DO NOT RESET THIS (under normal circumstances)
         # the risk of staleness is worth it since we have
         # already worked through most of the possible issues
         # around things going stale for that
         # FIXME yes, yet another reason to switch to explicit
         # representation of in memory annotation stores
+        # NOTE if you are swapping out a set of annos for a
+        # subset of those annos, then definitely reset this
 
         for a in ('_annos_list',):
             if hasattr(cls, a):
@@ -1347,8 +1351,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         try:
             return self._annos[self.id]  # this way updateds to annos will propagate
         except KeyError as e:
-            #from IPython import embed
-            #embed()
+            #breakpoint()
             log.critical(str(self._tagIndex))
             raise e
 
