@@ -852,7 +852,7 @@ class Annotation:
         # for stuff like this having the store be able to
         # search by hash would be great ...
         if autofetch:
-            self.data
+            self.data()
 
     def _update_path(self, path, value):
         # TODO ...
@@ -865,8 +865,7 @@ class Annotation:
             self._prior_versions.append(old)
             self._json = new
 
-    @property
-    def data(self):
+    def data(self, _refresh_cache=False):
         # a bit overkill given how small most annotations are
         # but, no harm in matching the pattern we use everywhere
         # else, and setting autofetch = True in init so that
@@ -884,6 +883,12 @@ class Annotation:
         # simplest differentiator, primary key on id + updated ...
         # to allow the /{id}/version/{updated} pattern ...
 
+        # the way to make the caching efficient is to pull the group
+        # annotations, and then always pull from the group cache
+        # until the next time _refresh_cache=True is called
+        # then a bulk update can be issued, still issues with
+        # syncing since we would need an endpoint that could
+        # request multiple annotation bodies at the same time
         resp = self.store.get_annotation(self.identifier)
         self.headers = resp.headers
         self._json = resp.json()
@@ -1034,9 +1039,26 @@ class HypothesisAnnotation:
 
         return references
 
-    @property
+    def parent(self, pool):
+        try:
+            return next(pool.getParents(self))
+        except StopIteration:
+            pass
+
+    def is_annotation(self):
+        for t in self.targets:
+            if 'selector' in t:
+                return True
+
+        return False
+
+    def is_reply(self):
+        # at some point annotations should have references
+        # so we test whether it is an annotation first
+        return bool(self.references) and not self.is_annotation()
+
     def is_page_note(self):
-        return self.type == 'pagenote'
+        return not (self.is_annoation() or self.is_reply())
 
     @property
     def type(self):
@@ -1115,6 +1137,41 @@ class HypothesisAnnotation:
 
     def __gt__(self, other):
         return not self.__lt__(other)
+
+
+class AnnotationPool:
+    """ classic object container class """
+    def __init__(self, annos=None, cls=HypothesisAnnotation):
+        self._index = {a.id:a for a in annos}
+        if annos is None:
+            annos = []
+
+        self._annos = annos
+        self._replies = {}
+
+    def add(self, annos):
+        # TODO update self._index etc.
+        self._annos.extend(annos)
+
+    def byId(self, id_annotation):
+        try:
+            return self._index[id_annotation]
+        except KeyError as e:
+            pass
+
+    def getParents(self, anno):
+        # TODO consider auto retrieve on missing?
+        if not anno.references:
+            return None
+        else:
+            # go backward to get the direct parent first, slower for shareLink but ok
+            for parent_id in anno.references[::-1]:
+                parent = self.byId(parent_id)
+                if parent is not None:
+                    if parent.id not in self._replies:
+                        self._replies[parent.id] = set()
+                    self._replies[parent.id].add(self)
+                    yield parent
 
 
 class iterclass(type):
