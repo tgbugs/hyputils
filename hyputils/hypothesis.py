@@ -1089,7 +1089,7 @@ class HypothesisAnnotation:
     def _selector_value(self, type, name):
         # obviously inefficient
         for selector in self.selectors:
-            if 'type' in selector and selector['type'] == type:
+            if 'type' in selector and selector['type'] == type and len(selector) > 1:
                 return selector[name]
 
     @property
