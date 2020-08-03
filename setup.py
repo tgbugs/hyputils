@@ -18,7 +18,8 @@ with open('README.md', 'rt') as f:
 tests_memex_require = ['bleach',
                        'jsonschema',
                        'mistune',
-                       'psycopg2',
+                       "psycopg2; implementation_name != 'pypy'",
+                       "psycopg2cffi; implementation_name == 'pypy'",
                        'python-slugify',
                        'sqlalchemy',
                        'webob']
