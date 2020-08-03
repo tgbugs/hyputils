@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3.7
 """
 Usage:
     test <name>
@@ -12,6 +12,7 @@ from docopt import docopt
 args = docopt(__doc__)
 name = args['<name>']
 
+
 async def hello():
     async with websockets.connect('ws://localhost:5050') as websocket:
         await websocket.send(name)
@@ -23,6 +24,5 @@ async def hello():
             print('waiting for next message')
             print(await websocket.recv())
 
+
 asyncio.get_event_loop().run_until_complete(hello())
-
-

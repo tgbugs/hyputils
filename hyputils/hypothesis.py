@@ -915,6 +915,9 @@ class Annotation:
     def diff(self, other=None):
         raise NotImplementedError('since we are keeping prior versions ...')
 
+    def __hash__(self):
+        return hash((self.__class__, self.id, self.updated))
+
 
 class HypothesisAnnotation:
     """Encapsulate one row of a Hypothesis API search."""
@@ -1130,7 +1133,8 @@ class HypothesisAnnotation:
                 self.updated == other.updated)
 
     def __hash__(self):
-        return hash(self.id + self.text + self.updated)
+        # FIXME why do we need self.text if we have updated?
+        return hash((self.id, self.text, self.updated))
 
     def __lt__(self, other):
         return self.updated < other.updated
@@ -1214,7 +1218,11 @@ class iterclass(type):
 #  it is possible to figure most of them out from their content but not always
 class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
     """ A wrapper around sets of hypothes.is annotations
-        with referential structure an pretty printing. """
+        with referential structure an pretty printing.
+        XXX BIG WARNING HERE: you can only use ALL subclasses of HypothesisHelper
+        XXX for a single group of annotations at a time otherwise things will go
+        XXX completely haywire, transition to use AnnotationPool if at all possible
+    """
     objects = {}  # TODO updates # NOTE: all child classes need their own copy of objects
     _tagIndex = {}
     _replies = {}
@@ -1289,7 +1297,10 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             populates annotations so that any persistent state from another
             program is removed unfriendly if they need to coexist, but for that
             to actually work this whole thing needs a rewrite to have explicit
-            representation of annotation groups """
+            representation of annotation groups
+
+            XXX WARNING this also resets ALL PARENT CLASSES
+        """
 
         cls.objects = {}
         cls._tagIndex = {}
@@ -1299,7 +1310,9 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         cls._done_loading = False
         if reset_annos_dict:
             HypothesisHelper._annos = {}
+            HypothesisHelper._index = {}
             # DO NOT RESET THIS (under normal circumstances)
+
         # the risk of staleness is worth it since we have
         # already worked through most of the possible issues
         # around things going stale for that
@@ -1310,7 +1323,27 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
 
         for a in ('_annos_list',):
             if hasattr(cls, a):
-                delattr(cls, a)
+                # cannot just use delattr here because
+                # the annos list might be on a parent class
+                # which is bad ... because this will reset
+                # ALL the parent classes as well, which is ...
+                # a result of the bad design of hypothesis helper
+                # NOTE we still have to delattr here because
+                # _annos_list IS set per class, but may also be
+                # set on parents >_< (screaming)
+                try:
+                    delattr(cls, a)
+                except AttributeError:  # LOL PYTHON
+                    pass
+
+                # FIXME WARNING EVIL SIDE EFFECTS ON OTHER CLASSES
+                # YOU WERE WARNED ABOVE
+                for pcls in cls.mro()[1:]:
+                    if hasattr(pcls, '_annos_list'):
+                        try:
+                            delattr(pcls, '_annos_list')
+                        except AttributeError:
+                            pass
 
     def __new__(cls, anno, annos):
         if not hasattr(cls, '_annos_list'):
@@ -1327,8 +1360,9 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             sa = set(annos)
             added = sa - sal
             removed = sal - sa
-            new = [a for a in annos if a in added]
-            cls._annos_list.extend(new)
+            if added:
+                new = [a for a in annos if a in added]
+                cls._annos_list.extend(new)
 
             annos = cls._annos_list
 
@@ -1521,7 +1555,7 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 self.updated == other.updated)
 
     def __hash__(self):
-        return hash(self.__class__.__name__ + self.id)
+        return hash((self.__class__.__name__, self.id, self.updated))
 
     def __lt__(self, other):
         return self.updated < other.updated
