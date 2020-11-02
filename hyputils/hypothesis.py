@@ -193,6 +193,10 @@ class AnnoReader:
 
                 try:
                     jblobs, last_sync_updated = jblobs_lsu
+                    if not isinstance(last_sync_updated, str):
+                        msg = ('We have probably hit the rare case where there '
+                               'are exactly two annotations in a cache file.')
+                        raise ValueError(msg)
                 except ValueError:
                     jblobs = jblobs_lsu
                     last_sync_updated = jblobs[-1]['updated']
