@@ -1065,7 +1065,7 @@ class HypothesisAnnotation:
         return bool(self.references) and not self.is_annotation()
 
     def is_page_note(self):
-        return not (self.is_annoation() or self.is_reply())
+        return not (self.is_annotation() or self.is_reply())
 
     @property
     def type(self):
