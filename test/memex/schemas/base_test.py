@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 from hyputils.memex._compat import PY2
 import enum
-from mock import Mock
+from unittest.mock import Mock
 import pytest
 
 from hyputils.memex.schemas import ValidationError

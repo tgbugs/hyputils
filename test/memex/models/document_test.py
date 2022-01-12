@@ -3,7 +3,7 @@
 from __future__ import unicode_literals
 import datetime
 
-import mock
+from unittest import mock
 import pytest
 import sqlalchemy as sa
 

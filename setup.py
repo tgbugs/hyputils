@@ -23,7 +23,7 @@ tests_memex_require = ['bleach',
                        'python-slugify',
                        'sqlalchemy',
                        'webob']
-tests_require = ['factory-boy', 'mock', 'pytest'] + tests_memex_require
+tests_require = ['factory-boy', 'pytest'] + tests_memex_require
 setup(name='hyputils',
       version=__version__,
       description='Python utilities for the Hypothes.is REST api and websocket interface',
@@ -40,6 +40,7 @@ setup(name='hyputils',
           'Programming Language :: Python :: 3.7',
           'Programming Language :: Python :: 3.8',
           'Programming Language :: Python :: 3.9',
+          'Programming Language :: Python :: 3.10',
       ],
       keywords='hypothesis hypothes.is web annotation',
       packages=['hyputils',
