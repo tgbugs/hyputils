@@ -700,7 +700,7 @@ class HypothesisUtils:
             rows = obj['rows']
             lr = len(rows)
             nresults += lr
-            if lr is 0:
+            if lr == 0:
                 return
 
             stop = None
@@ -1151,15 +1151,41 @@ class AnnotationPool:
     """ classic object container class """
     def __init__(self, annos=None, cls=HypothesisAnnotation):
         self._index = {a.id:a for a in annos}
+
+        dd = defaultdict(list)
+        for a in annos:
+            for ref in a.references:
+                try:
+                    parent = self._index[ref]
+                    dd[parent].append(a)
+                except KeyError as e:
+                    log.warning(f'dangling reply {a}')
+
+        self._child_index = dict(dd)
+
         if annos is None:
             annos = []
 
         self._annos = annos
-        self._replies = {}
+        self._replies = {}  # aka child index ...
 
     def add(self, annos):
         # TODO update self._index etc.
         self._annos.extend(annos)
+        for a in annos:
+            # FIXME warn on collision?
+            self._index[a.id] = a
+            for ref in a.references:
+                parent = self._index[ref]
+                if parent not in self._child_index:
+                    self._child_index[parent] = []
+
+                self._child_index[parent].append(a)
+
+    def children(self, id_annotation):
+        a = self.byId(id_annotation)
+        if a in self._child_index:
+            yield from self._child_index[a]
 
     def byId(self, id_annotation):
         try:
