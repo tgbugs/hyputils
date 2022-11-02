@@ -1161,13 +1161,13 @@ class AnnotationPool:
                 except KeyError as e:
                     log.warning(f'dangling reply {a}')
 
-        self._child_index = dict(dd)
+        self._replies_index = dict(dd)
+        self._replies = {}  # XXX see if we can remove this (used in getParents)
 
         if annos is None:
             annos = []
 
         self._annos = annos
-        self._replies = {}  # aka child index ...
 
     def add(self, annos):
         # TODO update self._index etc.
@@ -1177,15 +1177,15 @@ class AnnotationPool:
             self._index[a.id] = a
             for ref in a.references:
                 parent = self._index[ref]
-                if parent not in self._child_index:
-                    self._child_index[parent] = []
+                if parent not in self._replies_index:
+                    self._replies_index[parent] = []
 
-                self._child_index[parent].append(a)
+                self._replies_index[parent].append(a)
 
-    def children(self, id_annotation):
+    def replies(self, id_annotation):
         a = self.byId(id_annotation)
-        if a in self._child_index:
-            yield from self._child_index[a]
+        if a in self._replies_index:
+            yield from self._replies_index[a]
 
     def byId(self, id_annotation):
         try:
