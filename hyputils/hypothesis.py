@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from __future__ import print_function
-import os
 from os import environ, chmod
 import json
 import shutil
@@ -9,7 +8,7 @@ import pathlib
 import logging
 from time import sleep
 from types import GeneratorType
-from collections import Counter, defaultdict
+from collections import defaultdict
 import psutil  # sigh
 import appdirs
 import requests
@@ -26,24 +25,24 @@ __all__ = ['api_token', 'username', 'group', 'group_to_memfile',
            'AnnoFetcher', 'Memoizer',
            'HypothesisUtils', 'HypothesisHelper', 'Annotation', 'HypAnnoId']
 
-api_token = environ.get('HYP_API_TOKEN', 'TOKEN')  # Hypothesis API token
-username = environ.get('HYP_USERNAME', 'USERNAME') # Hypothesis username
+api_token = environ.get('HYP_API_TOKEN', 'TOKEN')   # Hypothesis API token
+username = environ.get('HYP_USERNAME', 'USERNAME')  # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
 ucd = appdirs.user_cache_dir()
 
 
 class JEncode(json.JSONEncoder):
-     def default(self, obj):
-         if isinstance(obj, tuple):
-             return list(obj)
-         elif isinstance(obj, HypothesisAnnotation):
-             return obj._row
+    def default(self, obj):
+        if isinstance(obj, tuple):
+            return list(obj)
+        elif isinstance(obj, HypothesisAnnotation):
+            return obj._row
 
-         # Let the base class default method raise the TypeError
-         return json.JSONEncoder.default(self, obj)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
 
 
-def group_to_memfile(group, post=lambda group_hash:None):
+def group_to_memfile(group, post=lambda group_hash: None):
     if group != '__world__':
         m = hashlib.sha256()
         m.update(group.encode())
@@ -83,6 +82,7 @@ if 'CI' not in environ:
 
 # simple uri normalization
 
+
 def norm(iri):
     if '://' in iri:
         _scheme, iri_norm = iri.split('://', 1)
@@ -94,6 +94,7 @@ def norm(iri):
     return iri_norm
 
 # annotation retrieval and memoization
+
 
 class NotOkError(Exception):
     def __init__(self, message, request):
@@ -133,18 +134,20 @@ class AnnoFetcher:
         order = 'asc'
         sort = 'updated'
         h = self.h()
-        params = {'order':order,
-                  'sort':sort,
-                  'group':h.group}
+        params = {'order': order,
+                  'sort': sort,
+                  'group': h.group}
         if search_after:
             params['search_after'] = search_after
         if max_results is None and self.group == '__world__':
-            log.info(f'searching __world__ as {self.username} since max_results was not set')
+            log.info(f'searching __world__ as {self.username} '
+                     'since max_results was not set')
             params['user'] = self.username
         if limit is not None:
             params['limit'] = limit
 
-        for row in h.search_all(params, max_results=max_results, stop_at=stop_at):
+        for row in h.search_all(
+                params, max_results=max_results, stop_at=stop_at):
             yield row
 
     def get_annos_from_api(self,
@@ -194,8 +197,8 @@ class AnnoReader:
                 try:
                     jblobs, last_sync_updated = jblobs_lsu
                     if not isinstance(last_sync_updated, str):
-                        msg = ('We have probably hit the rare case where there '
-                               'are exactly two annotations in a cache file.')
+                        msg = ('We have probably hit the rare case where there'
+                               ' are exactly two annotations in a cache file.')
                         raise ValueError(msg)
                 except ValueError:
                     jblobs = jblobs_lsu
@@ -526,13 +529,18 @@ def idFromShareLink(link):  # XXX warning this will break
         id_ = link.split('/')[3]
         return id_
 
+
 def shareLinkFromId(id_):
     return 'https://hyp.is/' + id_
 
 # API classes
 
+
 class HypothesisUtils:
     """ services for authenticating, searching, creating annotations """
+    # XXX design flaw, group is not required at this point, should be passed for operations
+    # a default_group could be set ... the issue is deep and pervasive though because the
+    # group id is expected all over the fucking place
     def __init__(self, username=None, token=None, group=None, domain=None, limit=None):
         if domain is None:
             self.domain = 'hypothes.is'
@@ -575,19 +583,19 @@ class HypothesisUtils:
             else:
                 self.ssl_retry = 0
                 log.error(e)
-                return {'ERROR':True, 'rows':tuple()}
+                return {'ERROR': True, 'rows': tuple()}
         except KeyboardInterrupt:
             raise
         except BaseException as e:
             log.exception(e)
             #print('Request, status code:', r.status_code)  # this causes more errors...
-            return {'ERROR':True, 'rows':tuple()}
+            return {'ERROR': True, 'rows': tuple()}
 
     def make_annotation_payload_with_target_using_only_text_quote(
             self, url, prefix, exact, suffix, text, tags, document, extra):
         """Create JSON payload for API call."""
         if exact is None:
-            target = [{'source':url}]
+            target = [{'source': url}]
         else:
             target = [{
                 "scope": [url],
@@ -599,11 +607,11 @@ class HypothesisUtils:
                     "suffix": suffix
                 },]
             }]
-        if text == None:
+        if text is None:
             text = ''
-        if tags == None:
+        if tags is None:
             tags = []
-        if document == None:
+        if document is None:
             document = {}
         payload = {
             "uri": url,
@@ -642,19 +650,19 @@ class HypothesisUtils:
     def head_annotation(self, id):
         # used as a 'kind' way to look for deleted annotations
         headers = {'Authorization': 'Bearer ' + self.token,
-                   'Content-Type': 'application/json;charset=utf-8' }
+                   'Content-Type': 'application/json;charset=utf-8'}
         r = requests.head(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def get_annotation(self, id):
         headers = {'Authorization': 'Bearer ' + self.token,
-                   'Content-Type': 'application/json;charset=utf-8' }
+                   'Content-Type': 'application/json;charset=utf-8'}
         r = requests.get(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def post_annotation(self, payload):
         headers = {'Authorization': 'Bearer ' + self.token,
-                   'Content-Type': 'application/json;charset=utf-8' }
+                   'Content-Type': 'application/json;charset=utf-8'}
         data = json.dumps(payload, ensure_ascii=False)
         r = requests.post(self.api_url + '/annotations',
                           headers=headers,
@@ -663,7 +671,7 @@ class HypothesisUtils:
 
     def patch_annotation(self, id, payload):
         headers = {'Authorization': 'Bearer ' + self.token,
-                   'Content-Type': 'application/json;charset=utf-8' }
+                   'Content-Type': 'application/json;charset=utf-8'}
         data = json.dumps(payload, ensure_ascii=False)
         r = requests.patch(self.api_url + '/annotations/' + id,
                            headers=headers,
@@ -672,7 +680,7 @@ class HypothesisUtils:
 
     def delete_annotation(self, id):
         headers = {'Authorization': 'Bearer ' + self.token,
-                   'Content-Type': 'application/json;charset=utf-8' }
+                   'Content-Type': 'application/json;charset=utf-8'}
         r = requests.delete(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
@@ -706,7 +714,7 @@ class HypothesisUtils:
             stop = None
             if max_results:
                 if nresults >= max_results:
-                    stop = max_results - nresults  + lr
+                    stop = max_results - nresults + lr
 
             if stop_at:
                 for row in rows[:stop]:
@@ -730,7 +738,7 @@ class HypothesisUtils:
         return (self
                 .search_url_template
                 .format(query=(urlencode(params, True)
-                               .replace('=','%3A'))))  # = > :
+                               .replace('=', '%3A'))))  # = > :
 
     def query_url(self, **params):
         return self.query_url_template.format(query=urlencode(params, True))
@@ -914,7 +922,8 @@ class Annotation:
             resp = self.store.patch_annotation(self._json)
 
         else:
-            log.warning(f'Data for {self.identifier} has not changed, not sending.')
+            log.warning(f'Data for {self.identifier} '
+                        'has not changed, not sending.')
 
     def diff(self, other=None):
         raise NotImplementedError('since we are keeping prior versions ...')
@@ -951,7 +960,9 @@ class HypothesisAnnotation:
 
     @property
     def user(self):
-        return self._row['user'].replace('acct:','').replace('@hypothes.is','')
+        return (self._row['user']
+                .replace('acct:', '')
+                .replace('@hypothes.is', ''))
 
     @property
     def created(self):
@@ -984,7 +995,7 @@ class HypothesisAnnotation:
         else:
             title = self.uri
 
-        title = title.replace('"',"'")
+        title = title.replace('"', "'")
         if not title:
             title = 'untitled'
 
@@ -1001,17 +1012,17 @@ class HypothesisAnnotation:
         if 'uri' in self._row:    # should it ever not?
             uri = self._row['uri']
         else:
-             uri = "no uri field for %s" % self.id
+            uri = "no uri field for %s" % self.id
 
         uri = (uri
-               .replace('https://via.hypothes.is/h/','')
-               .replace('https://via.hypothes.is/',''))
+               .replace('https://via.hypothes.is/h/', '')
+               .replace('https://via.hypothes.is/', ''))
 
         if uri.startswith('urn:x-pdf'):
             document = self.document
             for link in self.links:
                 uri = link['href']
-                if uri.encode('utf-8').startswith(b'urn:') == False:
+                if not uri.encode('utf-8').startswith(b'urn:'):
                     break
             if uri.encode('utf-8').startswith(b'urn:') and 'filename' in document:
                 uri = document['filename']
@@ -1127,7 +1138,7 @@ class HypothesisAnnotation:
     def group(self): return self._row['group']
 
     @property
-    def permissions(self): return {k:v for k,v in self._row['permissions'].items()}
+    def permissions(self): return {k:v for k, v in self._row['permissions'].items()}
 
     def __eq__(self, other):
         # text and tags can change, if exact changes then the id will also change
@@ -1576,7 +1587,6 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
             log.warning('Not done loading annos, you will be missing references!')
             return set()
 
-
     def __eq__(self, other):
         return (type(self) == type(other) and
                 self.id == other.id and
@@ -1615,7 +1625,8 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
         rep_ids = f'\n{t}replies:      ' + ' '.join(r._python__repr__ for r in self.replies)
         replies_text = (f'\n{t}replies:{replies}' if self.reprReplies else rep_ids) if replies else ''
         link = self.shareLink
-        if html: link = atag(link, link)
+        if html:
+            link = f'<a href="{link}">{link}</a>'
         startn = '\n' if not isinstance(number, int) or number > 1 else ''
         return (f'{startn}{t.replace("|","")}{number:-<20}'
                 f"\n{t}{self.__class__.__name__ + ':':<14}{link} {self._python__repr__}"
@@ -1627,4 +1638,3 @@ class HypothesisHelper(metaclass=iterclass):  # a better HypothesisAnnotation
                 f'{replies_text}'
                 f'{format__repr__for_children}'
                 f'\n{t}{"":_<20}')
-
