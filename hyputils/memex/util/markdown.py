@@ -9,6 +9,15 @@ import bleach
 import mistune
 from bleach.linkifier import LinkifyFilter
 
+if not hasattr(mistune, 'InlineLexer'):
+    mistune.InlineLexer = mistune.InlineParser
+
+if not hasattr(mistune, 'BlockLexer'):
+    mistune.BlockLexer = mistune.BlockParser
+
+if not hasattr(mistune, 'Renderer'):
+    mistune.Renderer = mistune.HTMLRenderer
+
 LINK_REL = "nofollow noopener"
 
 MARKDOWN_TAGS = [
@@ -59,25 +68,38 @@ markdown = None
 
 
 class MathMarkdown(mistune.Markdown):
+
+    def __init__(self, *args, **kwargs):
+        breakpoint()
+        super().__init__(*args, **kwargs)
+
     def output_block_math(self):
         return self.renderer.block_math(self.token["text"])
 
 
 class MathInlineLexer(mistune.InlineLexer):
+    INLINE_MATH = re.compile(r"\\\((.*?)\\\)", re.DOTALL)
     def __init__(self, *args, **kwargs):
         super(MathInlineLexer, self).__init__(*args, **kwargs)
-        self.rules.inline_math = re.compile(r"\\\((.*?)\\\)", re.DOTALL)
-        self.default_rules.insert(0, "inline_math")
+        if isinstance(self.rules, list):
+            self.rules.append('inline_math')
+        else:
+            self.rules.inline_math = re.compile(r"\\\((.*?)\\\)", re.DOTALL)
+            self.default_rules.insert(0, "inline_math")
 
     def output_inline_math(self, m):
         return self.renderer.inline_math(m.group(1))
 
 
 class MathBlockLexer(mistune.BlockLexer):
+    BLOCK_MATH = re.compile(r"^\$\$(.*?)\$\$", re.DOTALL)
     def __init__(self, *args, **kwargs):
         super(MathBlockLexer, self).__init__(*args, **kwargs)
-        self.rules.block_math = re.compile(r"^\$\$(.*?)\$\$", re.DOTALL)
-        self.default_rules.insert(0, "block_math")
+        if isinstance(self.rules, list):
+            self.rules.append('block_math')
+        else:
+            self.rules.block_math = re.compile(r"^\$\$(.*?)\$\$", re.DOTALL)
+            self.default_rules.insert(0, "block_math")
 
     def parse_block_math(self, m):
         self.tokens.append({"type": "block_math", "text": m.group(1)})
@@ -153,10 +175,11 @@ def _get_cleaner():
 def _get_markdown():
     global markdown
     if markdown is None:
+        renderer = MathRenderer()
         markdown = MathMarkdown(
-            renderer=MathRenderer(),
-            inline=MathInlineLexer,
-            block=MathBlockLexer,
-            escape=True,
+            renderer=renderer,
+            inline=MathInlineLexer(renderer),
+            block=MathBlockLexer(),
+            #escape=True,
         )
     return markdown
