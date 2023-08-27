@@ -5,13 +5,13 @@ import json
 import shutil
 import hashlib
 import pathlib
-import logging
 from time import sleep
 from types import GeneratorType
 from collections import defaultdict
 import psutil  # sigh
 import appdirs
 import requests
+from .utils import log, logd
 
 try:
     from urllib.parse import urlencode
@@ -55,27 +55,6 @@ def group_to_memfile(group, post=lambda group_hash: None):
     memfile.parent.mkdir(exist_ok=True, parents=True)  # FIXME remove after orthauth switch
     return memfile
 
-
-def makeSimpleLogger(name, level=logging.INFO):
-    # TODO use extra ...
-    logger = logging.getLogger(name)
-    if logger.handlers:  # prevent multiple handlers
-        return logger
-
-    logger.setLevel(level)
-    ch = logging.StreamHandler()  # FileHander goes to disk
-    fmt = ('[%(asctime)s] - %(levelname)8s - '
-           '%(name)14s - '
-           '%(filename)16s:%(lineno)-4d - '
-           '%(message)s')
-    formatter = logging.Formatter(fmt)
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-    return logger
-
-
-log = makeSimpleLogger('hyputils')
-logd = log.getChild('data')
 
 if 'CI' not in environ:
     log.debug(' '.join((api_token, username, group)))  # sanity check

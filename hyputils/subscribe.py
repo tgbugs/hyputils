@@ -13,6 +13,9 @@ from threading import Thread
 import certifi
 import websockets
 
+from .utils import log as _log
+
+log = _log.getChild('subscribe')
 
 class Handler:
     def __init__(self, filter_handlers):
@@ -97,12 +100,12 @@ def _ssl_context(verify=True):
 async def setup_connection(websocket):
     message = {'messageType': 'client_id',
                'value': str(uuid.uuid4()),}
-    print('SETUP MESSAGE', message)
+    log.info(f'SETUP MESSAGE\n{message}')
     await websocket.send(json.dumps(message))
 
 
 async def setup_filters(websocket, filters):
-    print('SETUP FILTERS\n', json.dumps(filters, indent=2))
+    log.info(f'SETUP FILTERS\n{json.dumps(filters, indent=2)}')
     await websocket.send(json.dumps(filters))
 
 
@@ -178,15 +181,15 @@ def setup_websocket(api_token, filters, filter_handlers,
         extra_headers.update(headers)
         exit_reader, _writer = await open_connection(sock=rsock, loop=loop)
         while True:  # for insurance could also test on closed wsock
-            print('WE SHOULD GET HERE')
+            log.debug('WE SHOULD GET HERE')
             try:
                 async with websockets.connect(websocket_endpoint,
                                               ssl=ssl_context,
                                               extra_headers=extra_headers) as ws:
                     await setup_connection(ws)
-                    print(f'websocket connected to {websocket_endpoint}')
+                    log.debug(f'websocket connected to {websocket_endpoint}')
                     await setup_filters(ws, filters)
-                    print('subscribed')
+                    log.debug('subscribed')
                     await process_or_exit(ws, handler, exit_reader)
             except ExitLoop as e:  # for whatever reason the await proceess or exit doesn't work here :/
                 print(e)
@@ -272,7 +275,7 @@ def main():
         # we now wait here for something else to happen, in this case
         # either there is a subscription or an unsubscription
         await conn_handler(websocket, path, reader)  # when this completes the connection is closed
-        subscribed.pop(name)
+        subscribed.pop(name)  # XXX will fail if there are duplicate names
         for send_something in subscribed.values():
             msg = json.dumps(f'{name} unsubscribed from cat facts!').encode()
             send_something(msg)
@@ -284,10 +287,13 @@ def main():
     groups = environ.get('HYP_GROUPS', '__world__').split(' ')
     filters = preFilter(groups=groups).export()
     filter_handlers = [printHandler(), wssh]
-    print(groups)
+    log.debug(groups)
     ws_loop, exit_loop = setup_websocket(api_token, filters, filter_handlers)
 
-    loop.run_until_complete(ws_loop(loop))
+    try:
+        loop.run_until_complete(ws_loop(loop))
+    except KeyboardInterrupt:
+        print()
 
 
 if __name__ == '__main__':
