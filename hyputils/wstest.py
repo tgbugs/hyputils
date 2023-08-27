@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.7
+#!/usr/bin/env python3
 """
 Usage:
     test <name>
@@ -25,4 +25,7 @@ async def hello():
             print(await websocket.recv())
 
 
-asyncio.get_event_loop().run_until_complete(hello())
+try:
+    asyncio.get_event_loop().run_until_complete(hello())
+except KeyboardInterrupt:
+    print()

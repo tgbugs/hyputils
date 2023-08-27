@@ -1,6 +1,7 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 
 import os
+import sys
 import asyncio
 import ssl
 import uuid
@@ -139,6 +140,16 @@ async def process_or_exit(websock, handler, exit_reader):
     raise future.exception()
 
 
+async def open_connection(sock=None, loop=None):
+    if sys.version_info.minor < 10:
+        exit_reader, _writer = await asyncio.open_connection(sock=sock, loop=loop)
+    else:
+        # XXX the doc string on asyncio.open_connection is incorrect in python3.11
+        exit_reader, _writer = await asyncio.open_connection(sock=sock)
+
+    return exit_reader, _writer
+
+
 def setup_websocket(api_token, filters, filter_handlers,
                     websocket_endpoint='wss://hypothes.is/ws',
                     extra_headers=None):
@@ -165,9 +176,7 @@ def setup_websocket(api_token, filters, filter_handlers,
 
         headers = {'Authorization': 'Bearer ' + api_token}
         extra_headers.update(headers)
-
-        exit_reader, _writer = await asyncio.open_connection(sock=rsock, loop=loop)
-
+        exit_reader, _writer = await open_connection(sock=rsock, loop=loop)
         while True:  # for insurance could also test on closed wsock
             print('WE SHOULD GET HERE')
             try:
@@ -248,7 +257,7 @@ def main():
                               f"{list(subscribed)} are also subscribed to cat facts!")
         greeting = greeting.format('\n')
         rsock, wsock = socketpair()
-        reader, writer = await asyncio.open_connection(sock=rsock, loop=loop)
+        reader, writer = await open_connection(sock=rsock, loop=loop)
         for send_something in subscribed.values():
             msg = json.dumps(f'{name} also subscribed to cat facts!').encode()
             send_something(msg)
