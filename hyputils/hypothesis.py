@@ -29,7 +29,6 @@ api_token = environ.get('HYP_API_TOKEN', 'TOKEN')   # Hypothesis API token
 username = environ.get('HYP_USERNAME', 'USERNAME')  # Hypothesis username
 group = environ.get('HYP_GROUP', '__world__')
 ucd = appdirs.user_cache_dir()
-ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36'
 
 
 class JEncode(json.JSONEncoder):
@@ -550,8 +549,7 @@ class HypothesisUtils:
     def authenticated_api_query(self, query_url=None):
         try:
             headers = {'Authorization': 'Bearer ' + self.token,
-                       'Accept': 'application/json',
-                       'User-Agent': ua,}
+                       'Accept': 'application/json',}
             r = requests.get(query_url, headers=headers)
             if r.ok:
                 obj = r.json()
@@ -633,15 +631,13 @@ class HypothesisUtils:
 
     def head_annotation(self, id):
         # used as a 'kind' way to look for deleted annotations
-        headers = {'Authorization': 'Bearer ' + self.token,
-                   'User-Agent': ua,}
+        headers = {'Authorization': 'Bearer ' + self.token,}
         r = requests.head(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
     def get_annotation(self, id):
         headers = {'Authorization': 'Bearer ' + self.token,
                    'Accept': 'application/json',
-                   'User-Agent': ua,
                    'Content-Type': 'application/json;charset=utf-8'}
         r = requests.get(self.api_url + '/annotations/' + id, headers=headers)
         return r
@@ -649,7 +645,6 @@ class HypothesisUtils:
     def post_annotation(self, payload):
         headers = {'Authorization': 'Bearer ' + self.token,
                    'Accept': 'application/json',
-                   'User-Agent': ua,
                    'Content-Type': 'application/json;charset=utf-8'}
         data = json.dumps(payload, ensure_ascii=False)
         r = requests.post(self.api_url + '/annotations',
@@ -660,7 +655,6 @@ class HypothesisUtils:
     def patch_annotation(self, id, payload):
         headers = {'Authorization': 'Bearer ' + self.token,
                    'Accept': 'application/json',
-                   'User-Agent': ua,
                    'Content-Type': 'application/json;charset=utf-8'}
         data = json.dumps(payload, ensure_ascii=False)
         r = requests.patch(self.api_url + '/annotations/' + id,
@@ -670,8 +664,7 @@ class HypothesisUtils:
 
     def delete_annotation(self, id):
         headers = {'Authorization': 'Bearer ' + self.token,
-                   'Accept': 'application/json',
-                   'User-Agent': ua,}
+                   'Accept': 'application/json',}
         r = requests.delete(self.api_url + '/annotations/' + id, headers=headers)
         return r
 
