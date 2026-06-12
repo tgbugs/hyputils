@@ -218,7 +218,10 @@ class AnnotationStream:
         loop.run_until_complete(ws_loop(loop))
 
     def __call__(self):
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError as e:
+            loop = asyncio.new_event_loop()  # fix for new 3.14 behavior
         ws_loop, exit_loop = setup_websocket(self.api_token, self.filters, self.filter_handlers)
         stream_thread = Thread(target=self.loop_target, args=(loop, ws_loop))
         return stream_thread, exit_loop
@@ -226,7 +229,10 @@ class AnnotationStream:
 
 def main():
     from handlers import printHandler, websocketServerHandler
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError as e:
+        loop = asyncio.new_event_loop()  # fix for new 3.14 behavior
 
     subscribed = {}
     def send_message(d):
